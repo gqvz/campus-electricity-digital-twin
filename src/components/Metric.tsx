@@ -1,0 +1,1 @@
+export function Metric({ label, value, detail, accent }: { label: string; value: string; detail: string; accent?: string }) { return <div className="metric"><div className="metric-label"><span className={accent ? `dot ${accent}` : 'dot'} />{label}</div><strong>{value}</strong><small>{detail}</small></div> }
