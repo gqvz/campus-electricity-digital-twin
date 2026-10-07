@@ -4,3 +4,8 @@ dist/
 *.local
 *.log
 *.tsbuildinfo
+artifacts/
+test-results/
+playwright-report/
+/references/
+/scripts/

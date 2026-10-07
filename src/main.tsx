@@ -1,6 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { App } from './App'
-import './styles.css'
+import { ChromaticApp } from './designs/Prototype'
+import './designs/designs.css'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)
+// Retired prototype/bookmark URLs no longer expose alternative designs.
+if (window.location.pathname !== '/' || window.location.search) {
+  window.history.replaceState(null, '', '/')
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ChromaticApp /></React.StrictMode>)

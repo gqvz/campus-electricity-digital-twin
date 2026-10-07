@@ -1,0 +1,83 @@
+IITR Pulse — geographic campus sources
+
+Retrieved 7 October 2026. Plan outlines and placement are geographic; architectural elevations are schematic, not surveyed.
+
+Coverage and provenance
+
+The shared campus contains 231 mapped building features, 229 road/path ways, 47 landscape/sport areas, and 17 individually mapped trees. Twelve buildings have illustrative audit observations. All other buildings are context, labelled Not audited when selected.
+
+- Campus boundary: https://www.openstreetmap.org/way/52435788 (version 26).
+- Source map extract: https://api.openstreetmap.org/api/0.6/map.json?bbox=77.888,29.859,77.904,29.874
+- Supplementary complete relation, checked and excluded as outside campus: https://api.openstreetmap.org/api/0.6/relation/6132618/full.json
+- Public manifest, boundary and counts: /campus/manifest.json
+- Building rings and source IDs/versions: /campus/buildings-0.json through /campus/buildings-4.json
+- Other geographic layers: /campus/roads.json, /campus/surfaces.json, /campus/trees.json
+
+© OpenStreetMap contributors. Database licensed under ODbL 1.0: https://www.openstreetmap.org/copyright
+The above JSON files constitute the publicly downloadable extracted database. The older /building-footprints.json is preserved as a legacy twelve-building extract; it is not the current rendering source.
+
+The importer retains buildings whose outer-ring vertex-average lies within the OSM campus boundary and whose ring has a vertex inside it. Multipolygon member ways are not also rendered as duplicate buildings. All retained features have complete rings; the manifest reports zero incomplete-building diagnostics. This is OSM coverage, not a claim to inventory every physical building. Unmapped structures, source errors, extensions and other IITR sites may be absent. Separate features can describe blocks of one complex. Many residences/support buildings are unnamed; names are not invented. OSM boundary data is not an official surveyed administrative boundary.
+
+Cross-check against IITR-published Google Maps pins
+
+IITR's navigation page links to Google Maps locations: https://www.iitr.ac.in/iahr2024/navigation_iitr_campus.html
+
+- MAC: [77.8963333, 29.8700825], inside its outer envelope (in its courtyard).
+- Mechanical Engineering East Block: [77.8973362, 29.8626681], inside the selected department outline.
+- APJ Abdul Kalam Block / LHC-II: [77.8940776, 29.8658641], less than one metre from the edge of https://www.openstreetmap.org/way/1080933906. The OSM feature is unnamed. Displayed identity is inferred from proximity and needs field confirmation; the pin is slightly outside the polygon, not contained by it.
+
+Interactive Google Maps/satellite imagery was unavailable in this environment. These published coordinates provide identity/location cross-checks, not a satellite survey. No Google imagery or building geometry was copied.
+
+Named audit geometry
+
+Named audit buildings — source and caveat
+
+LHC: https://www.openstreetmap.org/way/309750616
+  OSM “New Lecture Hall Complex”; different from LHC-II / APJ. Four schematic audit levels, not a verified floor count.
+MGCL: https://www.openstreetmap.org/way/289730185
+  Library outline including articulated eastern frontage.
+MAC: https://www.openstreetmap.org/relation/6110367
+  Three outer volumes and one inner courtyard, retained as a void.
+SAC: https://www.openstreetmap.org/way/1080933915
+  Angled perimeter; simplified sloping roof supported by OSM and institute references.
+Rajendra: https://www.openstreetmap.org/way/408251231
+  One hostel block; other mapped blocks appear separately as context.
+Ravindra: https://www.openstreetmap.org/relation/14382136
+  Two member ways stitched into one outline.
+Cautley: https://www.openstreetmap.org/way/408124364
+  Long mapped hostel wings.
+Govind: https://www.openstreetmap.org/relation/6110956
+  Building relation with outer way 408149328 and courtyard way 408149324; both now retained.
+Civil: https://www.openstreetmap.org/way/289745340
+  Selected department outline, not every annex.
+Electrical: https://www.openstreetmap.org/way/408149338
+  Selected department outline.
+ECE: https://www.openstreetmap.org/way/289739851
+  Combined Computer Science & Electronics Department; not verified as exclusively ECE.
+Mechanical: https://www.openstreetmap.org/way/289746872
+  Selected department outline.
+
+James Thomason Building uses https://www.openstreetmap.org/relation/8255183 including its courtyard. The displayed spelling corrects OSM “James Thomsan Building.” Its small dome is a schematic landmark cue, not measured roof geometry.
+
+Photographic studies
+
+Photographs were references only, not redistributed or embedded as textures.
+
+- MGCL architect: https://www.cpkukreja.com/indian-institute-of-technology-roorkee.html
+- MGCL institute photograph: https://iitr.ac.in/mgcl/nsiss/images/slider/33.jpg
+- MGCL institute brochure: https://iitr.ac.in/mgcl/nsiss/images/NSISS_Brochure.pdf
+- SAC institute exterior gallery: https://www.iitr.ac.in/estateworks/sac.html
+- MAC exterior reference: https://in.worldorgs.com/catalog/roorkee/amusement-center/multi-activity-center-mac
+- LHC-II institute gallery, not transplanted onto the other LHC: https://www.iitr.ac.in/estateworks/lhc.html
+
+MGCL glazing/colonnade/steps, MAC open roof frames, and SAC screening/projecting roof are simplified interpretations. Windows, screening counts, floor slabs, roof thickness and dome shape are not measured.
+
+Coordinate and height contract
+
+Source coordinates remain WGS84 longitude/latitude. A reversible local tangent-plane approximation uses origin [77.895, 29.865], x=east, y=south, 111320 metres/latitude degree and a cosine longitude scale. Every building and mapped layer uses the same scale: 50 metres per scene unit. No individual footprint is resized, translated to a grid cell or rotated relative to its source. Courtyards, disconnected volumes, spacing, orientation and relative widths are retained. The approximation is for campus visualization, not engineering measurement.
+
+Elevation uses OSM height where available, otherwise OSM levels × 3.6 m, otherwise assumed levels × 3.6 m. Unknown context defaults to one assumed level. Evidence panels identify the height basis. Floor separation adds schematic display gaps; groups are not surveyed interiors. Road centerlines are sourced, but untagged widths are visual estimates. Only individually mapped trees are drawn, not a complete vegetation survey.
+
+The selected Chromatic interface uses this dataset. Focus, zoom, rotation and pan transform the whole camera view; they do not relocate buildings. The accessible searchable HTML list exposes all 231 features. Alternative designs and the original prototype route have been retired.
+
+Electricity data is explicitly fictitious design-review fixtures. Geographic placement does not validate observations, and context buildings do not acquire fabricated wattage or kWh.
