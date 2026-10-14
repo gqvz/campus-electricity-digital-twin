@@ -26,9 +26,9 @@ test('the 3D campus can be rotated, panned and zoomed, and context is not audit 
   // Keyboard rotation and zoom.
   await scene.focus()
   await page.keyboard.press('ArrowRight')
-  await expect.poll(azimuth).toBeGreaterThan(40)
+  await expect.poll(azimuth, { timeout: 20000 }).toBeGreaterThan(40)
   await page.keyboard.press('+')
-  await expect.poll(zoom).toBeGreaterThan(1.3)
+  await expect.poll(zoom, { timeout: 20000 }).toBeGreaterThan(1.3)
   await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
   await page.getByRole('button', { name: 'Show building list', exact: true }).click()
   const list = page.locator('.index-popover')

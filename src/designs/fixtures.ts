@@ -8,7 +8,7 @@ export type CampusBuilding = {
 }
 export type Case = {
   id: string; buildingId: string; floor: number; zone: string; hour: number; time: string;
-  count: number; unitWatts: number; device: 'Lights' | 'Fans' | 'AC'; verifiedHours?: number;
+  count: number; unitWatts: number; device: 'Lights' | 'Fans' | 'AC' | 'Other'; verifiedHours?: number;
   verification?: string; recommendation: string;
 }
 const auditMetadata: Omit<CampusBuilding,'x'|'y'|'w'|'d'|'h'>[] = [

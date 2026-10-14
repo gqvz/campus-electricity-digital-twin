@@ -43,7 +43,7 @@ test('keyboard focus, evidence honesty, CSV export and the five-stop tour work',
   expect(rows.find(r=>r.startsWith('P-004,'))?.split(',').at(-1)).toBe('')
   await page.getByRole('button', { name: 'Take a tour' }).click()
   const tour = page.getByRole('region', { name: 'Guided tour' })
-  for (const heading of ['Campus audit scope', 'Largest sample hotspot', 'Look between the floors', 'Follow the evening round', 'Three small interventions']) {
+  for (const heading of ['Campus audit scope', 'Largest recorded hotspot', 'Look between the floors', 'Follow the evening round', 'Three small interventions']) {
     await expect(tour.getByRole('heading')).toHaveText(heading)
     await tour.getByRole('button', { name: heading==='Three small interventions'?'Finish tour':'Next stop' }).click()
   }

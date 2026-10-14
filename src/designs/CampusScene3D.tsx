@@ -22,6 +22,7 @@ type Props = {
   exploded?: boolean; selectedFloor?: number | null; markers?: boolean; focus?: boolean; resetKey?: number
 }
 
+const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const HOME = { azimuth: THREE.MathUtils.degToRad(28), elevation: THREE.MathUtils.degToRad(38) }
 const bounds = campusBounds()
 const centre = new THREE.Vector3(bounds.cx, 0, bounds.cz)
@@ -184,6 +185,7 @@ const Rig = forwardRef<SceneHandle, { selected: string; focus: boolean; resetKey
 
   return <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={.12} rotateSpeed={.7} panSpeed={.9}
     minPolarAngle={.2} maxPolarAngle={Math.PI/2 - .08} minZoom={base*.35} maxZoom={base*14} zoomToCursor screenSpacePanning={false}
+    touches={coarse ? { ONE: -1 as never, TWO: THREE.TOUCH.DOLLY_ROTATE } : undefined}
     onStart={() => { goal.current = null }} />
 })
 
