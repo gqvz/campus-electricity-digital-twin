@@ -9,3 +9,5 @@ test-results/
 playwright-report/
 /references/
 /scripts/
+
+graphify-out/

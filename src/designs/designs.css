@@ -1569,3 +1569,59 @@ font-size:16px; }
 line-height:1.6; }
 .prototype .context-evidence .intervention {
 margin-top:18px; }
+
+/* Interactive 3D campus (orthographic WebGL). */
+.campus-scene3d {
+  position: relative;
+  align-self: stretch;
+  flex: 1;
+  width: 100%;
+  min-height: 320px;
+  touch-action: none;
+  outline: none;
+  cursor: grab; }
+.campus-scene3d:active { cursor: grabbing; }
+.campus-scene3d:focus-visible { box-shadow: inset 0 0 0 2px var(--p-accent); }
+.campus-scene3d canvas { display: block; }
+.scene-label3d {
+  transform: translateY(-14px);
+  padding: 4px 9px;
+  border-radius: var(--p-radius, 3px);
+  background: var(--p-surface);
+  color: var(--p-ink);
+  border: 1px solid var(--p-border);
+  font: 600 11px var(--p-body);
+  white-space: nowrap; }
+.scene-label3d[data-selected=true] {
+  background: var(--p-accent);
+  color: var(--p-on-accent);
+  border-color: var(--p-accent); }
+.scene-marker3d {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--p-surface);
+  color: var(--p-ink);
+  border: 1px solid var(--p-border);
+  box-shadow: 0 1px 4px rgba(38,62,85,.25); }
+.scene-marker3d[data-selected=true] {
+  background: var(--p-accent);
+  color: var(--p-on-accent); }
+.scene-fallback3d {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+  color: var(--p-muted); }
+.scene-loading3d {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--p-muted);
+  font: 500 13px var(--p-body); }
+.drawing-wrap > .campus-scene3d { margin-top: 30px; }

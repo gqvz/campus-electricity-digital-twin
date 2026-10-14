@@ -1,5 +1,5 @@
 import type { CampusBuilding } from './fixtures'
-import { mappedSources, campusMap } from './campusData'
+import { mappedSources, campusMap, effectiveRings } from './campusData'
 import type { BuildingSource } from './campusData'
 
 export type Point2 = [number, number]
@@ -23,9 +23,9 @@ export function signedArea(points: Point2[]) {
 export function geographicToScene(p: Point2): Point2 {
   return geographicToLocal(p).map(v=>v/metersPerSceneUnit) as Point2
 }
-export function ringsToScene(rings: BuildingSource['rings']): FootprintRing[] {
+export function ringsToScene(rings: ReadonlyArray<{role:string;coordinates:ReadonlyArray<ReadonlyArray<number>>}>): FootprintRing[] {
   return rings.map(r => {
-    const points=r.coordinates.map(geographicToScene)
+    const points=r.coordinates.map(c=>geographicToScene([c[0],c[1]]))
     if ((signedArea(points)>0)!==(r.role==='outer'))points.reverse()
     return {role:r.role,points}
   })
@@ -33,11 +33,11 @@ export function ringsToScene(rings: BuildingSource['rings']): FootprintRing[] {
 const footprintCache=new Map<string,FootprintRing[]>()
 export function footprintFor(b: CampusBuilding): FootprintRing[] {
   let rings=footprintCache.get(b.id)
-  if(!rings){rings=ringsToScene(footprintSources[b.id].rings);footprintCache.set(b.id,rings)}
+  if(!rings){rings=ringsToScene(effectiveRings(footprintSources[b.id]));footprintCache.set(b.id,rings)}
   return rings
 }
 export function layoutForSource(source: BuildingSource) {
-  const rings=ringsToScene(source.rings)
+  const rings=ringsToScene(effectiveRings(source))
   const all = rings.flatMap(r => r.points)
   const minX = Math.min(...all.map(p => p[0])), maxX = Math.max(...all.map(p => p[0]))
   const minY = Math.min(...all.map(p => p[1])), maxY = Math.max(...all.map(p => p[1]))
