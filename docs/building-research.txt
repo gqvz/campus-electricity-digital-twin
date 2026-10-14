@@ -51,7 +51,7 @@ therefore from the model.
   (colonial, sandstone, grid, hostel, sandblock, concrete, plain) and which
   building takes which.
 - `src/designs/campus3d/buildingModel.ts`: wall, roof, window, balcony, column,
-  portico, dome and tower generators. Thomason anchor points (dome, portico,
+  portico, dome and tower generators. Thomason anchor points (front faces north toward the Main Building lawns; dome, portico,
   tower) are fixed in campus metres and unit-tested to sit on solid footprint,
   outside the courtyard.
 - `src/designs/campus3d/terrain.ts`: ground, surfaces, roads and vegetation.

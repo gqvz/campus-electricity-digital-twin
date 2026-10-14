@@ -21,7 +21,9 @@ export type BuildingModel = { solid: THREE.BufferGeometry; glass: THREE.BufferGe
 export const THOMASON_ID = 'osm-relation-8255183'
 // Dome, portico and tower anchors for the Thomason Building, in campus metres
 // (x east, z south). Taken from the OSM courtyard footprint and Street View.
-export const thomasonAnchors = { dome: [152, 84] as P2, portico: [152, 97] as P2, tower: [177, 80] as P2 }
+// The front faces north, toward the Main Building lawns and Thomason Marg; the tower stands behind it.
+export const thomasonAnchors = { dome: [154, -4] as P2, portico: [154, -20] as P2, tower: [129, 3] as P2 }
+const THOMASON_FRONT = -1 // -1 = toward -z (north)
 
 export function ringsInMetres(b: CampusBuilding): Ring[] {
   return footprintFor(b).map(r => ({ role: r.role, points: r.points.map(p => [p[0]*metersPerSceneUnit, p[1]*metersPerSceneUnit] as P2) }))
@@ -168,20 +170,22 @@ function longestEdge(edges: Edge[]) {
 function addThomasonLandmarks(c: Ctx, y1: number) {
   const g = c.solid, st = c.spec.style, a = thomasonAnchors, white = st.trim
   // Portico: six full-height columns carrying an entablature and pediment.
-  const [px, pz] = a.portico, w = 24, front = pz + 3.2, colH = y1 - .5
-  g.box(px-w/2-2, 0, pz-1, px+w/2+2, .45, pz+6.4, '#d8d1bd', white)
-  g.box(px-w/2-1, .45, pz-.5, px+w/2+1, .9, pz+5.2, '#e3dcc8', white)
+  const [px, pz] = a.portico, w = 24, f = THOMASON_FRONT, colH = y1 - .5
+  const Z = (d: number) => pz + f*d, front = Z(3.2)
+  g.box(px-w/2-2, 0, Z(-1), px+w/2+2, .45, Z(6.4), '#d8d1bd', white)
+  g.box(px-w/2-1, .45, Z(-.5), px+w/2+1, .9, Z(5.2), '#e3dcc8', white)
   for (let i = 0; i < 6; i++) {
     const x = px - w/2 + 1.6 + i*(w-3.2)/5
     g.box(x-.75, .9, front-.75, x+.75, 1.6, front+.75, white)
     g.cylinder(x, front, .6, 1.6, colH, white, 12, .52)
     g.box(x-.8, colH, front-.8, x+.8, colH+.45, front+.8, white)
   }
-  g.box(px-w/2, colH+.45, pz-.2, px+w/2, colH+1.5, front+1.05, white)
-  g.tri([px-w/2-.4, colH+1.5, front+1.05], [px+w/2+.4, colH+1.5, front+1.05], [px, colH+4.6, front+1.05], white, [0,0,1])
-  g.tri([px-w/2-.4, colH+1.5, pz-.2], [px+w/2+.4, colH+1.5, pz-.2], [px, colH+4.6, pz-.2], st.wall, [0,0,-1])
-  g.quad([px-w/2-.4, colH+1.5, pz-.2], [px-w/2-.4, colH+1.5, front+1.05], [px, colH+4.6, front+1.05], [px, colH+4.6, pz-.2], '#d9d0b8', [-1,1,0])
-  g.quad([px+w/2+.4, colH+1.5, front+1.05], [px+w/2+.4, colH+1.5, pz-.2], [px, colH+4.6, pz-.2], [px, colH+4.6, front+1.05], '#cfc6ac', [1,1,0])
+  const outer = Z(4.25), inner = Z(-.2)
+  g.box(px-w/2, colH+.45, Math.min(inner, outer), px+w/2, colH+1.5, Math.max(inner, outer), white)
+  g.tri([px-w/2-.4, colH+1.5, outer], [px+w/2+.4, colH+1.5, outer], [px, colH+4.6, outer], white, [0,0,f])
+  g.tri([px-w/2-.4, colH+1.5, inner], [px+w/2+.4, colH+1.5, inner], [px, colH+4.6, inner], st.wall, [0,0,-f])
+  g.quad([px-w/2-.4, colH+1.5, inner], [px-w/2-.4, colH+1.5, outer], [px, colH+4.6, outer], [px, colH+4.6, inner], '#d9d0b8', [-1,1,0])
+  g.quad([px+w/2+.4, colH+1.5, outer], [px+w/2+.4, colH+1.5, inner], [px, colH+4.6, inner], [px, colH+4.6, outer], '#cfc6ac', [1,1,0])
   // Central drum, clock faces and dome.
   const [dx, dz] = a.dome, base = y1 + 1.2
   g.cylinder(dx, dz, 6.4, base-1.2, base+3.6, st.wall, 28, 6.4, st.trim)
@@ -196,7 +200,7 @@ function addThomasonLandmarks(c: Ctx, y1: number) {
   g.cylinder(dx, dz, 1.3, lantern-.2, lantern+2.2, white, 10)
   g.dome(dx, dz, lantern+2.2, 1.5, '#f4f0e2', 3, 10, 1.4)
   g.cylinder(dx, dz, .1, lantern+3.6, lantern+5.2, '#7a6a4a', 5)
-  // Detached square clock/water tower rising behind the dome.
+  // Detached square clock/water tower rising behind the dome (on the far side from the front).
   const [tx, tz] = a.tower, th = y1 + 16
   g.box(tx-3.2, 0, tz-3.2, tx+3.2, th, tz+3.2, st.wall, st.trim)
   for (let k = 0; k < 4; k++) {
