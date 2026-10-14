@@ -35,6 +35,7 @@ function Evidence({ building, cases, floor, onCase }: { building: CampusBuilding
     <div className="building-subtitle"><a href={footprintSources[building.id].source} target="_blank" rel="noreferrer">Map source ↗</a></div>
     <div className="prototype-empty"><Map size={23}/><h3>Not audited</h3><p>This building is included for campus context. No electricity-wastage observations have been attached.</p></div>
     <div className="intervention"><div><h3>Mapped footprint, shared scale</h3><p>Location, orientation and outline come from OSM. Approximate visualization height: {building.heightMeters?.toFixed(1)} m ({building.heightBasis?.toLowerCase()}).</p></div></div>
+    {footprintSources[building.id].additionNote&&<p className="data-note">{footprintSources[building.id].additionNote}</p>}
     {footprintSources[building.id].nameInference&&<p className="data-note">Name inferred from proximity to the APJ pin linked from IITR’s navigation page; confirm on campus.</p>}
     <GroundNote building={building} />
     <p className="data-note">No surveyed elevation or room layout. An unnamed feature keeps its OSM identity rather than an invented name.</p>

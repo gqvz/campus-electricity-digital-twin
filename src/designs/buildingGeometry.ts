@@ -44,7 +44,7 @@ export function layoutForSource(source: BuildingSource) {
   return {x:minX,y:minY,w:maxX-minX,d:maxY-minY}
 }
 export const campusBoundary = campusMap.manifest.boundary.coordinates.map(p=>geographicToScene(p as Point2))
-export const campusStats = campusMap.manifest.statistics
+export const campusStats = { ...campusMap.manifest.statistics, buildings: mappedSources.length }
 export function pointInPolygon([x,y]:Point2, ring:Point2[]) {
   let inside=false
   for(let i=0,j=ring.length-1;i<ring.length;j=i++) {

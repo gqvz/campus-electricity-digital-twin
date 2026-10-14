@@ -76,9 +76,9 @@ const BuildingMesh = memo(function BuildingMesh({ terrainScale, b, selected, hov
   }
   const solid = selected ? selectedSolid : solidMaterial, glass = selected ? selectedGlass : glassMaterial
   const stackTop = separate ? b.floors*(floorH + 5) : model.topY
-  // Sit on the mean ground under the footprint; a foundation band fills the drop on the low side.
-  const baseY = model.ground.mean * terrainScale
-  const skirtDepth = (model.ground.mean - model.ground.min) * terrainScale + .4
+  // Seat on the highest ground under the footprint; a foundation band fills the drop on the low side.
+  const baseY = model.ground.max * terrainScale
+  const skirtDepth = (model.ground.max - model.ground.min) * terrainScale + .4
   return <group name={`building-${b.id}`} userData={{ buildingId: b.id }} position={[0, baseY, 0]}>
     <mesh geometry={model.skirt} material={solidMaterial} scale={[1, skirtDepth, 1]} castShadow receiveShadow />
     {!separate && <group {...handlers}>
@@ -128,7 +128,7 @@ const Rig = forwardRef<SceneHandle, { terrainScale: number; selected: string; fo
     const b = campusBuildings.find(x => x.id === id)!
     const m = modelFor(b), pts = m.footprint.flatMap(r => r.points)
     const xs = pts.map(p => p[0]), zs = pts.map(p => p[1])
-    return new THREE.Vector3((Math.min(...xs)+Math.max(...xs))/2, m.ground.mean*terrainScale + m.topY/2, (Math.min(...zs)+Math.max(...zs))/2)
+    return new THREE.Vector3((Math.min(...xs)+Math.max(...xs))/2, m.ground.max*terrainScale + m.topY/2, (Math.min(...zs)+Math.max(...zs))/2)
   }
   const current = () => {
     const c = controls.current, offset = camera.position.clone().sub(c.target)

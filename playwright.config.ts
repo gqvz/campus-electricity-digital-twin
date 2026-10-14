@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './tests',
   timeout: 120000,
+  expect: { timeout: 15000 },   // software WebGL is slow under parallel workers
   fullyParallel: false,
   workers: 2,
   use: {

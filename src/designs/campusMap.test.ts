@@ -7,7 +7,8 @@ import type { Point2 } from './buildingGeometry'
 describe('one geographic campus', () => {
   it('imports the mapped campus without duplicating multipolygon members', () => {
     expect(campusBuildings).toHaveLength(campusStats.buildings)
-    expect(campusStats.buildings).toBe(231)
+    expect(campusStats.buildings).toBe(232)   // 231 OSM + Vivekananda Bhawan (added from imagery)
+    expect(mappedSources.filter(s=>s.additionNote).map(s=>s.id)).toEqual(['vivekananda-bhawan'])
     expect(auditBuildings).toHaveLength(12)
     expect(new Set(campusBuildings.map(b=>b.id)).size).toBe(campusStats.buildings)
     const ownedWays=mappedSources.flatMap(s=>s.rings.flatMap(r=>r.wayIds))

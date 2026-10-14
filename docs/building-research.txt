@@ -45,6 +45,15 @@ Many other outlines (north hostels, most departments) already matched the
 imagery and were left alone; a few unmapped buildings are absent from OSM and
 therefore from the model.
 
+## Buildings missing from OSM
+
+| Building | Handling |
+| --- | --- |
+| Vivekananda Bhawan (EWS Bhawan) | Added from imagery as `vivekananda-bhawan` (`tools/footprint-additions.json` -> `tools/build_additions.py` -> `src/designs/campus/additions.json`). Two interlocking terraced C-shaped arms plus an east block; eight levels assumed from the place photo. |
+
+Other unmapped buildings probably exist (new construction since the OSM edit);
+the same tool adds them.
+
 ## Terrain
 
 The campus is not flat. Estimated ground height (metres above sea level):

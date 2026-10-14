@@ -282,15 +282,23 @@ export function buildModel(spec: ModelSpec, edges: Edge[], extra?: 'thomason' | 
     const n = Math.round(e.len / 1.4)
     for (let i = 0; i < n; i++) edgeBox(solid, e, (i+.5)*e.len/n - .06, (i+.5)*e.len/n + .06, y0 + 1, y1 - .6, 0, .55, st.trim)
   }
-  // Ground under the footprint, and a foundation band the scene stretches to meet a sloping site.
-  const samples: [number, number][] = []
-  for (const r of spec.rings.filter(r => r.role === 'outer')) {
-    r.points.forEach((p, i) => { samples.push(p); const q = r.points[(i + 1) % r.points.length]; samples.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]) })
-  }
+  // Ground under the footprint. The building is seated at the HIGHEST ground it touches (sampled over a
+  // padded bounding box because the terrain mesh interpolates between 30 m vertices), so no side is buried;
+  // the foundation band stretches down to the lowest ground.
   const gx = spec.rings.flatMap(r => r.points.map(p => p[0])), gz = spec.rings.flatMap(r => r.points.map(p => p[1]))
-  samples.push([(Math.min(...gx) + Math.max(...gx)) / 2, (Math.min(...gz) + Math.max(...gz)) / 2])
-  const hs = samples.map(p => groundY(p[0], p[1], 1))
-  const ground = { mean: hs.reduce((a, b) => a + b, 0) / hs.length, min: Math.min(...hs), max: Math.max(...hs) }
+  const x0 = Math.min(...gx), x1 = Math.max(...gx), z0 = Math.min(...gz), z1 = Math.max(...gz), pad = 18
+  const nxs = Math.max(2, Math.ceil((x1 - x0 + 2 * pad) / 8)), nzs = Math.max(2, Math.ceil((z1 - z0 + 2 * pad) / 8))
+  let gMax = -Infinity
+  for (let i = 0; i <= nxs; i++) for (let j = 0; j <= nzs; j++) {
+    gMax = Math.max(gMax, groundY(x0 - pad + (x1 - x0 + 2 * pad) * i / nxs, z0 - pad + (z1 - z0 + 2 * pad) * j / nzs, 1))
+  }
+  const hs: number[] = []
+  for (const r of spec.rings.filter(r => r.role === 'outer')) r.points.forEach((p, i) => {
+    const q = r.points[(i + 1) % r.points.length]; hs.push(groundY(p[0], p[1], 1), groundY((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, 1))
+  })
+  hs.push(groundY((x0 + x1) / 2, (z0 + z1) / 2, 1))
+  const gMin = Math.min(...hs)
+  const ground = { mean: hs.reduce((a, b) => a + b, 0) / hs.length, min: gMin, max: Math.max(gMax, gMin) }
   const skirt = new MeshBatch()
   for (const e of edges) skirt.quad([e.a[0], -1, e.a[1]], [e.b[0], -1, e.b[1]], [e.b[0], 0, e.b[1]], [e.a[0], 0, e.a[1]], st.base, outward(e))
   return { solid: solid.build(), glass: glass.build(), topY: y1 + (spec.slope ?? 0), footprint: spec.rings, skirt: skirt.build(), ground }

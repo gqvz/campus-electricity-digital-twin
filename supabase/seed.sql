@@ -49,6 +49,7 @@ insert into public.buildings (id, name, kind, floors, audit_scope) values
   ('osm-way-1221528044', 'Seismological Observatory', 'Other', 1, false),
   ('osm-way-407948443', 'Trainee Officers Hostel', 'Residence', 4, false),
   ('osm-way-502941574', 'VikasNagar1', 'Other', 2, false),
+  ('vivekananda-bhawan', 'Vivekananda Bhawan (EWS)', 'Residence', 8, false),
   ('osm-way-358869181', 'Water Resources Development and Management Department', 'Department', 1, false),
   ('osm-way-1127676453', 'Unnamed mapped building · 1127676453', 'Other', 1, false),
   ('osm-way-1127676454', 'Unnamed mapped building · 1127676454', 'Other', 1, false),

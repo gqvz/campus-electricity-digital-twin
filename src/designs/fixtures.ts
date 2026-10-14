@@ -30,6 +30,8 @@ const metaById=new Map(auditMetadata.map(b=>[b.id,b]))
 const photoEstimates: Record<string,{heightMeters:number;floors:number}> = {
   'osm-relation-8255183': { heightMeters: 12.6, floors: 2 },
   mgcl: { heightMeters: 17, floors: 4 },
+  // Opened 2025; eight terraced levels read from the place photo, not surveyed.
+  'vivekananda-bhawan': { heightMeters: 27, floors: 8 },
 }
 const mappedBuildings: CampusBuilding[] = mappedSources.map(source=>{
   const meta=metaById.get(source.id)
@@ -40,7 +42,7 @@ const mappedBuildings: CampusBuilding[] = mappedSources.map(source=>{
   const floors=photo?.floors||meta?.floors||(Number.isFinite(levelTag)&&levelTag>0?Math.round(levelTag):1)
   const heightMeters=photo?.heightMeters??(Number.isFinite(heightTag)&&heightTag>0?heightTag:(Number.isFinite(levelTag)&&levelTag>0?levelTag:floors)*3.6)
   const kind:CampusBuilding['kind']=meta?.kind||(/department|engineering/i.test(name)?'Department':/bhawan|hostel|residential|house|apartments|dormitory/i.test(name+' '+source.buildingType)?'Residence':/library/i.test(name)?'Library':/activity|club|hall|auditorium/i.test(name)?'Student life':/college|university|school|block/i.test(name+' '+source.buildingType)?'Academic':'Other')
-  return {id:source.id,name,short:meta?.short||(source.id==='osm-relation-8255183'?'MAIN':source.id==='osm-way-1080933906'?'LHC-II':source.sourceName?source.sourceName.split(/\s+/).slice(0,4).map(s=>s[0]).join('').toUpperCase():'OSM'),kind,floors,hero:meta?.hero,auditScope:!!meta,named:!!source.sourceName,heightMeters,heightBasis:photo?'Photo-based estimate':Number.isFinite(heightTag)&&heightTag>0?'OSM height':Number.isFinite(levelTag)&&levelTag>0?'OSM levels estimate':'Assumed height',h:heightMeters*verticalPixelsPerMeter,...layoutForSource(source)}
+  return {id:source.id,name,short:meta?.short||(source.id==='vivekananda-bhawan'?'VB':source.id==='osm-relation-8255183'?'MAIN':source.id==='osm-way-1080933906'?'LHC-II':source.sourceName?source.sourceName.split(/\s+/).slice(0,4).map(s=>s[0]).join('').toUpperCase():'OSM'),kind,floors,hero:meta?.hero,auditScope:!!meta,named:!!source.sourceName,heightMeters,heightBasis:photo?'Photo-based estimate':Number.isFinite(heightTag)&&heightTag>0?'OSM height':Number.isFinite(levelTag)&&levelTag>0?'OSM levels estimate':'Assumed height',h:heightMeters*verticalPixelsPerMeter,...layoutForSource(source)}
 })
 export const auditBuildings=auditMetadata.map(meta=>mappedBuildings.find(b=>b.id===meta.id)!)
 export const campusBuildings=[...auditBuildings,...mappedBuildings.filter(b=>!b.auditScope).sort((a,b)=>Number(b.named)-Number(a.named)||a.name.localeCompare(b.name))]

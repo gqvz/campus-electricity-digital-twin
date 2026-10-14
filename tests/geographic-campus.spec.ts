@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test('the 3D campus can be rotated, panned and zoomed, and context is not audit evidence', async ({ page }) => {
   await page.goto('/')
   const scene = page.getByTestId('campus-scene3d')
-  await expect(scene).toHaveAttribute('data-building-count', '231')
+  await expect(scene).toHaveAttribute('data-building-count', '232')
   await expect(scene.locator('canvas')).toBeVisible()
   await expect(scene).toHaveAttribute('data-azimuth', /\d/)
   const azimuth = async () => Number(await scene.getAttribute('data-azimuth'))
@@ -32,7 +32,7 @@ test('the 3D campus can be rotated, panned and zoomed, and context is not audit 
   await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
   await page.getByRole('button', { name: 'Show building list', exact: true }).click()
   const list = page.locator('.index-popover')
-  await expect(list.locator('.index-row')).toHaveCount(231)
+  await expect(list.locator('.index-row')).toHaveCount(232)
   await list.getByRole('combobox', { name: 'Building type', exact: true }).selectOption('Audit scope')
   await expect(list.locator('.index-row')).toHaveCount(12)
   await list.getByRole('combobox', { name: 'Building type', exact: true }).selectOption('All buildings')

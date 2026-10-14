@@ -94,3 +94,7 @@ Some plan outlines were corrected by eye against satellite imagery where OSM tra
 Terrain
 
 Ground height in the 3D view is an estimate of bare-earth elevation from the Copernicus GLO-30 surface model (ESA) with tree-canopy height (Meta and World Resources Institute, CC BY 4.0) and building height removed by a least-squares fit (tools/fetch_terrain.py). SRTM and ASTER 30 m models were used as an independent cross-check. It shows the large-scale fall of about 7-9 m from the Main Building / library plateau toward Rajiv Bhawan, Jawahar Bhawan and the stadium. Local accuracy is about +/-3 m; the relief toggle exaggerates it three times and is labelled.
+
+Buildings added from imagery
+
+Vivekananda Bhawan (EWS Bhawan, opened 2025) is not yet in OpenStreetMap. Its outline (/campus/additions.json) was traced by eye from aerial imagery, about +/-3 m, and its eight levels (about 27 m) are read from a place photo. Please add it to OpenStreetMap from a survey or permitted imagery; the app will then drop this entry. Confirm the shape on campus.

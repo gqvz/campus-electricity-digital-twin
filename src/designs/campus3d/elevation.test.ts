@@ -27,7 +27,7 @@ describe('campus terrain', () => {
     for (const b of campusBuildings.slice(0, 40)) {
       const g = modelFor(b).ground
       expect(g.min).toBeLessThanOrEqual(g.mean)
-      expect(g.mean).toBeLessThanOrEqual(g.max)
+      expect(g.mean).toBeLessThanOrEqual(g.max + 1e-9)   // seated at the highest ground touched
       expect(g.mean).toBeGreaterThanOrEqual(-1)
     }
     expect(datum).toBeGreaterThan(200)
