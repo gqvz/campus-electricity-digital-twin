@@ -90,3 +90,7 @@ Building heights, facades and rooftop details in the 3D view are procedural stud
 Satellite review
 
 Some plan outlines were corrected by eye against satellite imagery where OSM traces a whole complex as one filled outline: Ravindra Bhawan, Govind Bhawan, Computer Science & Electronics, Mechanical Department and the Management Studies courtyard (see docs/building-research.txt and tools/refine_footprints.py). The OSM rings remain in /campus/buildings-*.json; the corrections are in the app's refinements.json. They are approximate (a few metres), not surveyed.
+
+Terrain
+
+Ground height in the 3D view is an estimate of bare-earth elevation from the Copernicus GLO-30 surface model (ESA) with tree-canopy height (Meta and World Resources Institute, CC BY 4.0) and building height removed by a least-squares fit (tools/fetch_terrain.py). SRTM and ASTER 30 m models were used as an independent cross-check. It shows the large-scale fall of about 7-9 m from the Main Building / library plateau toward Rajiv Bhawan, Jawahar Bhawan and the stadium. Local accuracy is about +/-3 m; the relief toggle exaggerates it three times and is labelled.

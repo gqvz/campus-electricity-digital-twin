@@ -1,13 +1,14 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, Redo2, RotateCcw, Search, SlidersHorizontal, Sparkles, Undo2, X, Zap } from 'lucide-react'
+import { Mountain, ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, Redo2, RotateCcw, Search, SlidersHorizontal, Sparkles, Undo2, X, Zap } from 'lucide-react'
 import { chromatic } from './theme'
 import type { SceneHandle } from './CampusScene3D'
 // The WebGL scene (three.js) loads after the header, index and evidence panel.
 const CampusScene3D = lazy(() => import('./CampusScene3D').then(m => ({ default: m.CampusScene3D })))
 import { campusBuildings, caseEnergy, caseWatts, floorName, loadFor, number } from './fixtures'
 import type { CampusBuilding, Case } from './fixtures'
-import { campusStats, footprintSources } from './buildingGeometry'
+import { campusStats, footprintSources, metersPerSceneUnit } from './buildingGeometry'
+import { elevationAtLocal } from './campus3d/elevation'
 import { Link } from 'react-router-dom'
 import { useCases } from '../data/useCases'
 import { useAuth } from '../data/useAuth'
@@ -16,6 +17,13 @@ import type { CaseSource } from '../data/repository'
 export function CubeMark() { return <svg width="28" height="32" viewBox="0 0 28 32" fill="none" aria-hidden="true"><path d="M14 1 27 8.5V23.5L14 31 1 23.5V8.5Z" stroke="currentColor" strokeWidth="1.4" /><path d="M1 8.5 14 16 27 8.5M14 16V31M7.5 5 20.5 12.5V27.2M7.5 12.2V27.2M1 16 14 23.5 27 16" stroke="currentColor" strokeWidth="1.1" /></svg> }
 const windows = ['All times','Morning','Afternoon','Evening','Night']
 const devices = ['All devices','Lights','Fans','AC']
+
+const mainBuilding = campusBuildings.find(b => b.id === 'osm-relation-8255183')
+const groundOf = (b: CampusBuilding) => elevationAtLocal((b.x + b.w/2) * metersPerSceneUnit, (b.y + b.d/2) * metersPerSceneUnit)
+function GroundNote({ building }: { building: CampusBuilding }) {
+  const here = groundOf(building), ref = mainBuilding ? groundOf(mainBuilding) : here, diff = here - ref
+  return <p className="data-note">Ground about {Math.round(here)} m above sea level{building.id === mainBuilding?.id ? '' : Math.abs(diff) < 1 ? ', level with the Main Building' : `, ${Math.abs(Math.round(diff))} m ${diff < 0 ? 'below' : 'above'} the Main Building`}. Estimated from satellite elevation models, about ±3 m.</p>
+}
 
 function Evidence({ building, cases, floor, onCase }: { building: CampusBuilding; cases: Case[]; floor: number|null; onCase: (c: Case)=>void }) {
   const list = cases.filter(c=>c.buildingId===building.id&&(floor===null||c.floor===floor))
@@ -28,6 +36,7 @@ function Evidence({ building, cases, floor, onCase }: { building: CampusBuilding
     <div className="prototype-empty"><Map size={23}/><h3>Not audited</h3><p>This building is included for campus context. No electricity-wastage observations have been attached.</p></div>
     <div className="intervention"><div><h3>Mapped footprint, shared scale</h3><p>Location, orientation and outline come from OSM. Approximate visualization height: {building.heightMeters?.toFixed(1)} m ({building.heightBasis?.toLowerCase()}).</p></div></div>
     {footprintSources[building.id].nameInference&&<p className="data-note">Name inferred from proximity to the APJ pin linked from IITR’s navigation page; confirm on campus.</p>}
+    <GroundNote building={building} />
     <p className="data-note">No surveyed elevation or room layout. An unnamed feature keeps its OSM identity rather than an invented name.</p>
   </div>
   return <div className="evidence-content">
@@ -44,6 +53,7 @@ function Evidence({ building, cases, floor, onCase }: { building: CampusBuilding
     </button>) : <div className="prototype-empty"><Eye size={19} /><p>No sample evidence in this selection.</p><small>Try another time window, floor, or building.</small></div>}
     <div className="intervention"><span className="intervention-icon"><Sparkles size={16} /></span><div><h3>Small change, real potential</h3><p>{list[0]?.recommendation??'Audit this building before recommending an intervention.'}</p></div></div>
     <div className="verified-energy"><span>Verified-duration estimate</span><strong>{energy?`${energy.toFixed(2)} kWh`:'Duration not verified'}</strong></div>
+    <GroundNote building={building} />
     <p className="data-note">Sample observations for design review. A single sighting supports watts; energy requires a verified duration.</p>
   </div>
 }
@@ -76,6 +86,7 @@ export function ChromaticApp() {
   const [floor,setFloor] = useState<number|null>(null)
   const [exploded,setExploded] = useState(false)
   const scene = useRef<SceneHandle>(null)
+  const [relief, setRelief] = useState(false)
   const [focused,setFocused] = useState(false)
   const [resetKey,setResetKey] = useState(0)
   const [markers,setMarkers] = useState(true)
@@ -104,7 +115,7 @@ export function ChromaticApp() {
   const cases = useMemo(()=>allCases.filter(c=>(device==='All devices'||c.device===device)&&(period==='All times'||(period==='Morning'&&c.hour<12)||(period==='Afternoon'&&c.hour>=12&&c.hour<17)||(period==='Evening'&&c.hour>=17&&c.hour<21)||(period==='Night'&&c.hour>=21))),[allCases,period,device])
   const visible = campusBuildings.filter(b=>(kind==='All buildings'||(kind==='Audit scope'?b.auditScope:b.kind===kind))&&`${b.name} ${b.short}`.toLowerCase().includes(query.toLowerCase())).map(b=>b.id)
   const select = (id:string) => { setSelected(id);setQuery('');setFloor(null);setExploded(false);setCaseOpen(null);setIndexOpen(false);setView('campus') }
-  const reset = () => {setSelected('lhc');setFocused(false);setResetKey(v=>v+1);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
+  const reset = () => {setRelief(false);setSelected('lhc');setFocused(false);setResetKey(v=>v+1);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
   const hotspot = useMemo(()=>[...campusBuildings].filter(b=>b.auditScope).sort((a,b)=>loadFor(b.id,allCases)-loadFor(a.id,allCases))[0],[allCases])
   const nextTour = () => {const step=(tour??-1)+1;if(step>4){setTour(null);return}setTour(step);setView(step===4?'findings':'campus');if(step===1&&hotspot&&loadFor(hotspot.id,allCases)>0)select(hotspot.id);if(step===2){select('lhc');setExploded(true)}if(step===3)setPeriod('Evening')}
   const style = { '--p-bg':p.bg,'--p-surface':p.surface,'--p-ink':p.ink,'--p-muted':p.muted,'--p-border':p.border,'--p-accent':p.accent,'--p-on-accent':p.onAccent,'--p-scene':p.scene,'--p-high':p.high,'--p-medium':p.medium,'--p-radius':`${direction.radius}px`,'--p-display':`'${direction.display}', sans-serif`,'--p-body':`'${direction.body}', sans-serif`,'--p-mono':`'${direction.mono}', monospace` } as CSSProperties
@@ -125,9 +136,9 @@ export function ChromaticApp() {
         {data.status==='error'&&<div className="stage-banner" role="alert"><span>Could not load observations: {data.error}</span><button onClick={data.reload}>Retry</button></div>}
         {source?.mode==='live'&&source.observationCount===0&&<div className="stage-banner" role="status"><span>No published observations yet. Evidence appears here once audits are reviewed and published.</span></div>}
         <div className="stage-summary"><div><strong>{cases.length.toString().padStart(2,'0')}</strong><span>Sample observations</span></div><div><strong>{new Set(cases.map(c=>c.buildingId)).size.toString().padStart(2,'0')}<small>/12</small></strong><span>Buildings with evidence</span></div></div>
-        <div className="drawing-wrap"><Suspense fallback={<p className="scene-loading3d" role="status">Loading the 3D campus…</p>}><CampusScene3D ref={scene} direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} markers={markers} focus={focused} resetKey={resetKey}/></Suspense></div>
+        <div className="drawing-wrap"><Suspense fallback={<p className="scene-loading3d" role="status">Loading the 3D campus…</p>}><CampusScene3D ref={scene} direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} markers={markers} focus={focused} resetKey={resetKey} terrainScale={relief?3:1}/></Suspense></div>
         <div className="district-legend"><small><span className="hint-pointer">Drag to rotate · right-drag to pan · scroll to zoom</span><span className="hint-touch">Two fingers to rotate and zoom · one finger scrolls the page</span></small></div>
-        <div className="stage-bottom"><div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div><div className="map-controls"><button aria-label="Zoom out" onClick={()=>scene.current?.zoomBy(1/1.4)}><Minus size={15}/></button><button aria-label="Zoom in" onClick={()=>scene.current?.zoomBy(1.4)}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>setFocused(v=>!v)}><Focus size={15}/></button><button aria-label="Rotate view left" onClick={()=>scene.current?.rotateBy(-45)}><Undo2 size={15}/></button><button aria-label="Rotate view right" onClick={()=>scene.current?.rotateBy(45)}><Redo2 size={15}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
+        <div className="stage-bottom"><div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div><div className="map-controls"><button aria-label="Zoom out" onClick={()=>scene.current?.zoomBy(1/1.4)}><Minus size={15}/></button><button aria-label="Zoom in" onClick={()=>scene.current?.zoomBy(1.4)}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>setFocused(v=>!v)}><Focus size={15}/></button><button aria-label="Rotate view left" onClick={()=>scene.current?.rotateBy(-45)}><Undo2 size={15}/></button><button aria-label="Rotate view right" onClick={()=>scene.current?.rotateBy(45)}><Redo2 size={15}/></button><button aria-label="Exaggerate terrain relief three times" aria-pressed={relief} onClick={()=>setRelief(v=>!v)}><Mountain size={15}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
         {indexOpen&&<div className="index-popover"><div className="popover-top"><span>Select a building</span><button aria-label="Close building list" onClick={()=>setIndexOpen(false)}><X size={16}/></button></div>{index}</div>}
       </section>
       <aside className="prototype-inspector" aria-label="Selected building evidence"><div className="inspector-top"><span><span className="selection-dot"/>Selected building</span><button aria-label="Previous building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+campusBuildings.length-1)%campusBuildings.length].id)}><ArrowLeft size={14}/></button><button aria-label="Next building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+1)%campusBuildings.length].id)}><ArrowRight size={14}/></button></div>

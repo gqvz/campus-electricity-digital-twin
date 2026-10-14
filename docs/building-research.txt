@@ -45,6 +45,27 @@ Many other outlines (north hostels, most departments) already matched the
 imagery and were left alone; a few unmapped buildings are absent from OSM and
 therefore from the model.
 
+## Terrain
+
+The campus is not flat. Estimated ground height (metres above sea level):
+
+| Place | Estimate |
+| --- | ---: |
+| Library, Govind Bhawan, Main Building plateau | about 270 |
+| Ravindra, Civil, Mechanical | 267-269 |
+| Rajiv Bhawan, Rajendra, SAC | 263-264 |
+| Jawahar Bhawan, Cautley, MAC | 262-263 |
+| Stadium | about 261 |
+
+Method: Copernicus GLO-30 DSM, minus a fitted canopy term (Meta/WRI canopy height)
+and building term (our footprints x heights); the SRTM and ASTER 30 m models
+(averaged, canopy not removed) agree within about 4 m and show the same ridge.
+Residual standard deviation 2.7 m, so single values are good to about +/-3 m
+while the 7-9 m fall from the plateau to the north and east is the signal.
+Buildings sit on the mean ground under their footprint with a foundation band to
+the low side. The relief toggle draws the same surface three times as tall.
+Reproduce with `tools/fetch_terrain.py` (needs rasterio and numpy).
+
 ## How the model uses it
 
 - `src/designs/campus3d/styles.ts`: the seven parametric vocabularies

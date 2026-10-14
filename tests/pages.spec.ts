@@ -26,3 +26,14 @@ test('explorer links reach the method page and unknown routes return home', asyn
   await page.goto('/designs/blueprint?x=1')
   await expect(page).toHaveURL(/\/$/)
 })
+
+test('terrain relief can be exaggerated and the inspector states ground height', async ({ page }) => {
+  await page.goto('/')
+  const toggle = page.getByRole('button', { name: 'Exaggerate terrain relief three times' })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.locator('.evidence-content')).toContainText(/Ground about \d+ m above sea level/)
+})

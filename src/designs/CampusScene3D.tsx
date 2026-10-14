@@ -8,6 +8,7 @@ import { campusBuildings, loadFor, number } from './fixtures'
 import type { CampusBuilding, Case } from './fixtures'
 import { floorSliceModel, modelFor } from './campus3d/buildingModel'
 import { buildGround, buildRoads, buildSurfaces, buildTrees, campusBounds } from './campus3d/terrain'
+import { groundY } from './campus3d/elevation'
 
 export type SceneHandle = {
   zoomBy: (factor: number) => void
@@ -20,20 +21,22 @@ export type SceneHandle = {
 type Props = {
   direction: CampusTheme; selected: string; onSelect: (id: string) => void; cases?: Case[]; visible?: string[]
   exploded?: boolean; selectedFloor?: number | null; markers?: boolean; focus?: boolean; resetKey?: number
+  /** Vertical exaggeration of the ground; 1 is true scale. */
+  terrainScale?: number
 }
 
 const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const HOME = { azimuth: THREE.MathUtils.degToRad(28), elevation: THREE.MathUtils.degToRad(38) }
 const bounds = campusBounds()
-const centre = new THREE.Vector3(bounds.cx, 0, bounds.cz)
+const centre = new THREE.Vector3(bounds.cx, groundY(bounds.cx, bounds.cz, 1), bounds.cz)
 
 // ---------------------------------------------------------------- terrain
 
-const Terrain = memo(function Terrain({ buildingRings }: { buildingRings: [number, number][][] }) {
-  const ground = useMemo(buildGround, [])
-  const surfaces = useMemo(buildSurfaces, [])
-  const roads = useMemo(buildRoads, [])
-  const trees = useMemo(() => buildTrees(buildingRings).geometry, [buildingRings])
+const Terrain = memo(function Terrain({ buildingRings, scale }: { buildingRings: [number, number][][]; scale: number }) {
+  const ground = useMemo(() => buildGround(scale), [scale])
+  const surfaces = useMemo(() => buildSurfaces(scale), [scale])
+  const roads = useMemo(() => buildRoads(scale), [scale])
+  const trees = useMemo(() => buildTrees(buildingRings, scale).geometry, [buildingRings, scale])
   const flat = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }), [])
   const none = () => null
   return <group>
@@ -53,9 +56,9 @@ const selectedGlass = glassMaterial.clone(); selectedGlass.emissive = new THREE.
 const dimSolid = solidMaterial.clone(); dimSolid.transparent = true; dimSolid.opacity = .35
 const dimGlass = glassMaterial.clone(); dimGlass.transparent = true; dimGlass.opacity = .35
 
-type MeshProps = { b: CampusBuilding; selected: boolean; hovered: boolean; watts: number; exploded: boolean; floor: number | null; accent: string; onSelect: (id: string) => void; onHover: (id: string | null) => void; markers: boolean }
+type MeshProps = { terrainScale: number; b: CampusBuilding; selected: boolean; hovered: boolean; watts: number; exploded: boolean; floor: number | null; accent: string; onSelect: (id: string) => void; onHover: (id: string | null) => void; markers: boolean }
 
-const BuildingMesh = memo(function BuildingMesh({ b, selected, hovered, watts, exploded, floor, accent, onSelect, onHover, markers }: MeshProps) {
+const BuildingMesh = memo(function BuildingMesh({ terrainScale, b, selected, hovered, watts, exploded, floor, accent, onSelect, onHover, markers }: MeshProps) {
   const model = useMemo(() => modelFor(b), [b])
   const separate = exploded && selected && !!b.hero
   const slices = useMemo(() => separate ? Array.from({ length: b.floors }, (_, k) => floorSliceModel(b, k)) : [], [separate, b])
@@ -73,7 +76,11 @@ const BuildingMesh = memo(function BuildingMesh({ b, selected, hovered, watts, e
   }
   const solid = selected ? selectedSolid : solidMaterial, glass = selected ? selectedGlass : glassMaterial
   const stackTop = separate ? b.floors*(floorH + 5) : model.topY
-  return <group name={`building-${b.id}`} userData={{ buildingId: b.id }}>
+  // Sit on the mean ground under the footprint; a foundation band fills the drop on the low side.
+  const baseY = model.ground.mean * terrainScale
+  const skirtDepth = (model.ground.mean - model.ground.min) * terrainScale + .4
+  return <group name={`building-${b.id}`} userData={{ buildingId: b.id }} position={[0, baseY, 0]}>
+    <mesh geometry={model.skirt} material={solidMaterial} scale={[1, skirtDepth, 1]} castShadow receiveShadow />
     {!separate && <group {...handlers}>
       <mesh geometry={model.solid} material={solid} castShadow receiveShadow />
       <mesh geometry={model.glass} material={glass} castShadow receiveShadow />
@@ -99,7 +106,7 @@ const BuildingMesh = memo(function BuildingMesh({ b, selected, hovered, watts, e
 
 type Goal = { target: THREE.Vector3; zoom: number; theta?: number; phi?: number }
 
-const Rig = forwardRef<SceneHandle, { selected: string; focus: boolean; resetKey: number; onChange: (state: { azimuth: number; zoom: number }) => void }>(function Rig({ selected, focus, resetKey, onChange }, ref) {
+const Rig = forwardRef<SceneHandle, { terrainScale: number; selected: string; focus: boolean; resetKey: number; onChange: (state: { azimuth: number; zoom: number }) => void }>(function Rig({ terrainScale, selected, focus, resetKey, onChange }, ref) {
   const camera = useThree(s => s.camera) as THREE.OrthographicCamera
   const size = useThree(s => s.size)
   const controls = useRef<any>(null)
@@ -121,13 +128,13 @@ const Rig = forwardRef<SceneHandle, { selected: string; focus: boolean; resetKey
     const b = campusBuildings.find(x => x.id === id)!
     const m = modelFor(b), pts = m.footprint.flatMap(r => r.points)
     const xs = pts.map(p => p[0]), zs = pts.map(p => p[1])
-    return new THREE.Vector3((Math.min(...xs)+Math.max(...xs))/2, m.topY/2, (Math.min(...zs)+Math.max(...zs))/2)
+    return new THREE.Vector3((Math.min(...xs)+Math.max(...xs))/2, m.ground.mean*terrainScale + m.topY/2, (Math.min(...zs)+Math.max(...zs))/2)
   }
   const current = () => {
     const c = controls.current, offset = camera.position.clone().sub(c.target)
     return new THREE.Spherical().setFromVector3(offset)
   }
-  const homeGoal = (): Goal => ({ target: centre.clone(), zoom: baseRef.current, theta: HOME.azimuth, phi: Math.PI/2 - HOME.elevation })
+  const homeGoal = (): Goal => ({ target: new THREE.Vector3(centre.x, groundY(centre.x, centre.z, terrainScale), centre.z), zoom: baseRef.current, theta: HOME.azimuth, phi: Math.PI/2 - HOME.elevation })
   const focusGoal = (id: string): Goal => ({ target: buildingCentre(id), zoom: baseRef.current*4.2 })
 
   useEffect(() => { // initial placement and resize
@@ -141,7 +148,7 @@ const Rig = forwardRef<SceneHandle, { selected: string; focus: boolean; resetKey
     place(HOME.azimuth, Math.PI/2 - HOME.elevation, centre)
   }, [base]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { goal.current = focus ? focusGoal(selected) : homeGoal() }, [focus, selected]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { goal.current = focus ? focusGoal(selected) : homeGoal() }, [focus, selected, terrainScale]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (resetKey) goal.current = homeGoal() }, [resetKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
@@ -210,7 +217,7 @@ function hasWebGL() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')) } catch { return false }
 }
 
-export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene3D({ direction, selected, onSelect, cases, visible, exploded = false, selectedFloor = null, markers = true, focus = false, resetKey = 0 }, ref) {
+export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene3D({ direction, selected, onSelect, cases, visible, exploded = false, selectedFloor = null, markers = true, focus = false, resetKey = 0, terrainScale = 1 }, ref) {
   const p = direction.palette
   const [hover, setHover] = useState<string | null>(null)
   const [webgl] = useState(hasWebGL)
@@ -253,10 +260,10 @@ export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene
       onPointerMissed={() => setHover(null)}>
       <color attach="background" args={[p.scene]} />
       <Lights />
-      <Terrain buildingRings={buildingRings} />
-      {items.map(b => <BuildingMesh key={b.id} b={b} selected={b.id === selected} hovered={hover === b.id} watts={loadFor(b.id, cases)}
+      <Terrain buildingRings={buildingRings} scale={terrainScale} />
+      {items.map(b => <BuildingMesh key={b.id} terrainScale={terrainScale} b={b} selected={b.id === selected} hovered={hover === b.id} watts={loadFor(b.id, cases)}
         exploded={exploded} floor={selectedFloor} accent={p.accent} markers={markers} onSelect={onSelect} onHover={setHover} />)}
-      <Rig ref={rig} selected={selected} focus={focus} resetKey={resetKey} onChange={onChange} />
+      <Rig ref={rig} terrainScale={terrainScale} selected={selected} focus={focus} resetKey={resetKey} onChange={onChange} />
     </Canvas>}
     <ul className="sr-only" aria-label="Audited buildings">
       {audit.map(b => <li key={b.id}><button tabIndex={-1} onClick={() => onSelect(b.id)} aria-pressed={selected === b.id}>{`Select ${b.name}, ${number(loadFor(b.id, cases))} watts in sample observations`}</button></li>)}

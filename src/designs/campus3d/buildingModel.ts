@@ -5,6 +5,7 @@ import { distanceToRing, footprintFor, footprintSources, metersPerSceneUnit, out
 import type { CampusBuilding } from '../fixtures'
 import { hashOf, isDetailed, styleFor } from './styles'
 import type { Style } from './styles'
+import { groundY } from './elevation'
 
 // Procedural architectural models. Plan outlines are the sourced OSM rings;
 // everything vertical (storeys, bays, columns, domes) is a schematic study
@@ -16,7 +17,13 @@ export type ModelSpec = {
   id: string; rings: Ring[]; height: number; floors: number; style: Style
   detailed: boolean; slope?: number
 }
-export type BuildingModel = { solid: THREE.BufferGeometry; glass: THREE.BufferGeometry; topY: number; footprint: Ring[] }
+export type BuildingModel = {
+  solid: THREE.BufferGeometry; glass: THREE.BufferGeometry; topY: number; footprint: Ring[]
+  /** Unit-depth foundation band (y from -1 to 0); the scene stretches it to the slope under the building. */
+  skirt: THREE.BufferGeometry
+  /** Ground height under the footprint, metres above the campus datum at true scale. */
+  ground: { mean: number; min: number; max: number }
+}
 
 export const THOMASON_ID = 'osm-relation-8255183'
 // Dome, portico and tower anchors for the Thomason Building, in campus metres
@@ -275,7 +282,18 @@ export function buildModel(spec: ModelSpec, edges: Edge[], extra?: 'thomason' | 
     const n = Math.round(e.len / 1.4)
     for (let i = 0; i < n; i++) edgeBox(solid, e, (i+.5)*e.len/n - .06, (i+.5)*e.len/n + .06, y0 + 1, y1 - .6, 0, .55, st.trim)
   }
-  return { solid: solid.build(), glass: glass.build(), topY: y1 + (spec.slope ?? 0), footprint: spec.rings }
+  // Ground under the footprint, and a foundation band the scene stretches to meet a sloping site.
+  const samples: [number, number][] = []
+  for (const r of spec.rings.filter(r => r.role === 'outer')) {
+    r.points.forEach((p, i) => { samples.push(p); const q = r.points[(i + 1) % r.points.length]; samples.push([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]) })
+  }
+  const gx = spec.rings.flatMap(r => r.points.map(p => p[0])), gz = spec.rings.flatMap(r => r.points.map(p => p[1]))
+  samples.push([(Math.min(...gx) + Math.max(...gx)) / 2, (Math.min(...gz) + Math.max(...gz)) / 2])
+  const hs = samples.map(p => groundY(p[0], p[1], 1))
+  const ground = { mean: hs.reduce((a, b) => a + b, 0) / hs.length, min: Math.min(...hs), max: Math.max(...hs) }
+  const skirt = new MeshBatch()
+  for (const e of edges) skirt.quad([e.a[0], -1, e.a[1]], [e.b[0], -1, e.b[1]], [e.b[0], 0, e.b[1]], [e.a[0], 0, e.a[1]], st.base, outward(e))
+  return { solid: solid.build(), glass: glass.build(), topY: y1 + (spec.slope ?? 0), footprint: spec.rings, skirt: skirt.build(), ground }
 }
 
 const modelCache = new Map<string, BuildingModel>()

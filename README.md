@@ -17,7 +17,7 @@ The shared-scale map contains 231 OSM building features within the mapped bounda
 
 Observations are fixed illustrative fixtures, not collected results or live telemetry. Watts use count × configured wattage; kWh requires an explicit verification interval. Heights, floor layouts and façade details remain schematic. Recent height research is preserved separately, not adopted as verified geometry.
 
-The campus is a real-time 3D model (React Three Fiber, orthographic camera). Drag to orbit, right-drag or arrow keys to pan, scroll or +/- to zoom, and use the rotate buttons for 45° turns. Building plan shapes are the sourced OSM rings; storeys, windows, columns, balconies, domes and towers are procedural studies from photographs (see [docs/building-research.txt](docs/building-research.txt)). Supabase, authentication, audit capture, review/publication and real observations are upcoming work.
+The campus is a real-time 3D model (React Three Fiber, orthographic camera). Drag to orbit, right-drag or arrow keys to pan, scroll or +/- to zoom, and use the rotate buttons for 45° turns. The ground follows an estimated elevation surface (about 7-9 m higher around the Main Building and library than at Rajiv/Jawahar Bhawan and the stadium); a toggle exaggerates it three times. Building plan shapes are the sourced OSM rings; storeys, windows, columns, balconies, domes and towers are procedural studies from photographs (see [docs/building-research.txt](docs/building-research.txt)). Supabase, authentication, audit capture, review/publication and real observations are upcoming work.
 
 ## Design and sources
 
