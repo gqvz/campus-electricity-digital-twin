@@ -40,6 +40,16 @@ do $$ begin  -- a duration without a later verified_at is rejected
   exception when check_violation then null; end;
 end $$;
 
+do $$ begin  -- submitting locks the draft against further edits by its author
+  update public.observations set submitted_at = now() where id = '22222222-2222-2222-2222-222222222222';
+  begin
+    update public.observations set zone_name = 'changed after submit' where id = '22222222-2222-2222-2222-222222222222';
+    raise exception 'author edited a submitted observation';
+  exception when others then
+    if sqlerrm = 'author edited a submitted observation' then raise; end if;
+  end;
+end $$;
+
 -- anonymous sees nothing from the base tables and no drafts through the view
 reset role;
 set local role anon;
