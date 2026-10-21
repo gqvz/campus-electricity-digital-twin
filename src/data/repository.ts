@@ -11,7 +11,7 @@ const clock = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone, hour
 
 type PublicRow = {
   id: string; building_id: string; floor: number; zone_name: string; device: string; device_count: number
-  unit_watts: number; observed_at: string; verified_at: string | null; verified_hours: number | string | null
+  unit_watts: number; occupied: boolean; confidence: string; observed_at: string; verified_at: string | null; verified_hours: number | string | null
   recommendation: string | null; published_at: string | null
 }
 
@@ -22,6 +22,8 @@ export function rowToCase(r: PublicRow): Case {
     id: r.id.slice(0, 8).toUpperCase(), buildingId: r.building_id, floor: r.floor, zone: r.zone_name,
     hour: Number(time.slice(0, 2)), time, count: r.device_count, unitWatts: r.unit_watts,
     device: deviceLabel[r.device] ?? 'Other',
+    occupied: r.occupied, confidence: r.confidence === 'inferred' ? 'inferred' : 'direct',
+    observedOn: new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(r.observed_at)),
     verifiedHours: hours,
     verification: r.verified_at && hours ? `Shutdown confirmed at ${clock(r.verified_at)}` : undefined,
     recommendation: r.recommendation ?? '',

@@ -37,3 +37,12 @@ test('terrain relief can be exaggerated and the inspector states ground height',
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(page.locator('.evidence-content')).toContainText(/Ground about \d+ m above sea level/)
 })
+
+test('evidence figures say what the numbers support', async ({ page }) => {
+  await page.goto('/')
+  const panel = page.locator('.evidence-content')
+  await expect(panel).toContainText(/summed over \d+ sighting/)
+  await expect(panel).toContainText(/with a verified duration|no energy is claimed/)
+  await expect(panel).toContainText('not concurrent demand')
+  await expect(panel).toContainText('Unoccupied')
+})

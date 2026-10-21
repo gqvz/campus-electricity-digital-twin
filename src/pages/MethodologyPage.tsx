@@ -8,7 +8,8 @@ export function MethodologyPage() {
       <h2>Formulas</h2>
       <ul>
         <li><b>Avoidable load (W)</b> = device count × watts per device. Every valid observation has this.</li>
-        <li><b>Verified energy (kWh)</b> = watts × verified hours ÷ 1000. It exists only when a later revisit or shutdown time proves how long the device ran.</li>
+        <li><b>Verified energy (kWh)</b> = watts × verified hours ÷ 1000. It exists only when a later revisit or shutdown time is recorded. The duration is the time from the sighting to that check and assumes the device stayed on throughout, so it is an estimate bounded by what we saw, not a measured runtime.</li>
+        <li><b>Building and campus totals</b> add up the loads of individual sightings. Sightings at different times, or repeat visits to one room, are summed as a comparison measure; they are not concurrent demand and not a reading of consumption.</li>
       </ul>
       <p>A single sighting is a snapshot. It is never converted into an assumed-duration kWh figure, and loads recorded at different times are a comparison measure, not a campus-wide concurrent demand reading.</p>
       <h2>Review and publication</h2>

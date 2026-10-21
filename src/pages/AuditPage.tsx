@@ -107,7 +107,7 @@ function AuditForm({ name, reviewer, onSignOut }: { name: string; reviewer: bool
         {errors.observedAt && <em className="field-error">{errors.observedAt.message}</em>}
       </label>
       <label className="field check"><input type="checkbox" {...register('occupied')} /><span>Someone was in the space</span></label>
-      <label className="field wide"><span>Later check: when was it switched off? <small>optional, enables kWh</small></span>
+      <label className="field wide"><span>Later check: when was it switched off? <small>optional. Enables kWh, which assumes it stayed on from your sighting until then</small></span>
         <input type="datetime-local" {...register('verifiedAt')} aria-invalid={!!errors.verifiedAt} />
         {errors.verifiedAt && <em className="field-error">{errors.verifiedAt.message}</em>}
       </label>

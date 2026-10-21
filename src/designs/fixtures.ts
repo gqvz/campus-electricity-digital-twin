@@ -10,6 +10,7 @@ export type Case = {
   id: string; buildingId: string; floor: number; zone: string; hour: number; time: string;
   count: number; unitWatts: number; device: 'Lights' | 'Fans' | 'AC' | 'Other'; verifiedHours?: number;
   verification?: string; recommendation: string;
+  occupied?: boolean; confidence?: 'direct' | 'inferred'; observedOn?: string   // ISO date; absent in demo fixtures
 }
 const auditMetadata: Omit<CampusBuilding,'x'|'y'|'w'|'d'|'h'>[] = [
   { id:'lhc', short:'LHC', name:'Lecture Hall Complex', kind:'Academic', floors:4, hero:true },
