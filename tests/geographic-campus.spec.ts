@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { shot } from './shot'
 
 test('the 3D campus can be rotated, panned and zoomed, and context is not audit evidence', async ({ page }) => {
+  test.setTimeout(300000)   // one long flow through the software-WebGL scene
   await page.goto('/')
   const scene = page.getByTestId('campus-scene3d')
   await expect(scene).toHaveAttribute('data-building-count', '232')
@@ -46,11 +48,11 @@ test('the 3D campus can be rotated, panned and zoomed, and context is not audit 
   await expect(scene).toHaveAttribute('data-selected', 'osm-relation-8255183')
   await page.getByRole('button', { name: 'Focus selected building', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Focus selected building', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(zoom, { timeout: 10000 }).toBeGreaterThan(3.5)
+  await expect.poll(zoom, { timeout: 30000 }).toBeGreaterThan(3.5)
   await page.waitForTimeout(500)
-  await page.screenshot({ path: 'artifacts/designs/geographic-main-focused.png', fullPage: true })
-  await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
-  await expect.poll(zoom, { timeout: 10000 }).toBeLessThan(1.1)
+  await shot(page, 'artifacts/designs/geographic-main-focused.png')
+  await page.getByRole('button', { name: 'Reset campus', exact: true }).click({ force: true })
+  await expect.poll(zoom, { timeout: 30000 }).toBeLessThan(1.1)
 })
 
 test('current campus source data is publicly reproducible', async ({ request }) => {

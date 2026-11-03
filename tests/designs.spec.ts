@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
+import { shot } from './shot'
 
 test('Chromatic is the sole interface, including retired bookmarks', async ({ page, request }) => {
   for (const url of ['/', '/designs/chromatic?embed=1', '/designs/blueprint', '/designs/sumi', '/designs/porcelain', '/designs/canopy', '/designs/section', '/designs/signal', '/designs/nightfall', '/designs/playfield', '/designs/waypoint', '/compare?left=blueprint&right=sumi', '/inspirations', '/original']) {
@@ -60,7 +61,7 @@ test('tablet and mobile keep accessible controls and reflow', async ({ page }) =
     await expect(page.getByRole('button', { name: 'Show building list' })).toBeVisible()
     const scan = await new AxeBuilder({ page }).include('.prototype').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()
     expect(scan.violations.filter(v=>v.impact==='critical'||v.impact==='serious').map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}))).toEqual([])
-    await page.screenshot({ path: `artifacts/designs/chromatic-${width}.png`, fullPage: true })
+    await shot(page, `artifacts/designs/chromatic-${width}.png`)
   }
 })
 
@@ -70,7 +71,7 @@ test('tablet and mobile keep accessible controls and reflow', async ({ page }) =
     await page.goto('/')
     await page.evaluate(() => document.fonts.ready)
     await expect(page.locator('.evidence-content h2')).toHaveText('Lecture Hall Complex')
-    await page.screenshot({ path: `artifacts/designs/chromatic-desktop.png`, fullPage: true })
+    await shot(page, `artifacts/designs/chromatic-desktop.png`)
     await page.getByRole('button', { name: /^Select Mahatma/ }).dispatchEvent('click')
     await expect(page.locator('.evidence-content h2')).toHaveText('Mahatma Gandhi Central Library')
     await page.getByRole('button', { name: /P-004/ }).click()
@@ -95,7 +96,7 @@ test('tablet and mobile keep accessible controls and reflow', async ({ page }) =
     if (scan.violations.length) console.log('Chromatic', JSON.stringify(scan.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))))
     expect(scan.violations.filter(v=>v.impact==='critical'||v.impact==='serious').map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}))).toEqual([])
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.screenshot({ path: `artifacts/designs/chromatic-mobile.png`, fullPage: true })
+    await shot(page, `artifacts/designs/chromatic-mobile.png`)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true)
     await page.getByRole('button', { name: 'Show building list', exact: true }).click()
     await page.getByRole('textbox', { name: 'Search buildings', exact: true }).last().fill('no building')

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Mountain, ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, Redo2, RotateCcw, Search, SlidersHorizontal, Sparkles, Undo2, X, Zap } from 'lucide-react'
+import { Flame, Mountain, ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, Redo2, RotateCcw, Search, SlidersHorizontal, Sparkles, Undo2, X, Zap } from 'lucide-react'
 import { chromatic } from './theme'
 import type { SceneHandle } from './CampusScene3D'
 // The WebGL scene (three.js) loads after the header, index and evidence panel.
@@ -11,6 +11,7 @@ import { campusStats, footprintSources, metersPerSceneUnit } from './buildingGeo
 import { elevationAtLocal } from './campus3d/elevation'
 import { Link } from 'react-router-dom'
 import { useCases } from '../data/useCases'
+import { HEAT_RAMP } from './campus3d/heat'
 import { useAuth } from '../data/useAuth'
 import type { CaseSource } from '../data/repository'
 import { energyCoverage, formatDay, summarize } from '../data/summary'
@@ -90,6 +91,7 @@ export function ChromaticApp() {
   const [exploded,setExploded] = useState(false)
   const scene = useRef<SceneHandle>(null)
   const [relief, setRelief] = useState(false)
+  const [heatmap, setHeatmap] = useState(false)
   const [focused,setFocused] = useState(false)
   const [resetKey,setResetKey] = useState(0)
   const [markers,setMarkers] = useState(true)
@@ -118,7 +120,7 @@ export function ChromaticApp() {
   const cases = useMemo(()=>allCases.filter(c=>(device==='All devices'||c.device===device)&&(period==='All times'||(period==='Morning'&&c.hour<12)||(period==='Afternoon'&&c.hour>=12&&c.hour<17)||(period==='Evening'&&c.hour>=17&&c.hour<21)||(period==='Night'&&c.hour>=21))),[allCases,period,device])
   const visible = campusBuildings.filter(b=>(kind==='All buildings'||(kind==='Audit scope'?b.auditScope:b.kind===kind))&&`${b.name} ${b.short}`.toLowerCase().includes(query.toLowerCase())).map(b=>b.id)
   const select = (id:string) => { setSelected(id);setQuery('');setFloor(null);setExploded(false);setCaseOpen(null);setIndexOpen(false);setView('campus') }
-  const reset = () => {setRelief(false);setSelected('lhc');setFocused(false);setResetKey(v=>v+1);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
+  const reset = () => {setRelief(false);setHeatmap(false);setSelected('lhc');setFocused(false);setResetKey(v=>v+1);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
   const hotspot = useMemo(()=>[...campusBuildings].filter(b=>b.auditScope).sort((a,b)=>loadFor(b.id,allCases)-loadFor(a.id,allCases))[0],[allCases])
   const nextTour = () => {const step=(tour??-1)+1;if(step>4){setTour(null);return}setTour(step);setView(step===4?'findings':'campus');if(step===1&&hotspot&&loadFor(hotspot.id,allCases)>0)select(hotspot.id);if(step===2){select('lhc');setExploded(true)}if(step===3)setPeriod('Evening')}
   const style = { '--p-bg':p.bg,'--p-surface':p.surface,'--p-ink':p.ink,'--p-muted':p.muted,'--p-border':p.border,'--p-accent':p.accent,'--p-on-accent':p.onAccent,'--p-scene':p.scene,'--p-high':p.high,'--p-medium':p.medium,'--p-radius':`${direction.radius}px`,'--p-display':`'${direction.display}', sans-serif`,'--p-body':`'${direction.body}', sans-serif`,'--p-mono':`'${direction.mono}', monospace` } as CSSProperties
@@ -139,9 +141,9 @@ export function ChromaticApp() {
         {data.status==='error'&&<div className="stage-banner" role="alert"><span>Could not load observations: {data.error}</span><button onClick={data.reload}>Retry</button></div>}
         {source?.mode==='live'&&source.observationCount===0&&<div className="stage-banner" role="status"><span>No published observations yet. Evidence appears here once audits are reviewed and published.</span></div>}
         <div className="stage-summary"><div><strong>{cases.length.toString().padStart(2,'0')}</strong><span>Sample observations</span></div><div><strong>{new Set(cases.map(c=>c.buildingId)).size.toString().padStart(2,'0')}<small>/12</small></strong><span>Buildings with evidence</span></div></div>
-        <div className="drawing-wrap"><Suspense fallback={<p className="scene-loading3d" role="status">Loading the 3D campus…</p>}><CampusScene3D ref={scene} direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} markers={markers} focus={focused} resetKey={resetKey} terrainScale={relief?3:1}/></Suspense></div>
+        <div className="drawing-wrap"><Suspense fallback={<p className="scene-loading3d" role="status">Loading the 3D campus…</p>}><CampusScene3D ref={scene} direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} markers={markers} focus={focused} resetKey={resetKey} terrainScale={relief?3:1} heatmap={heatmap}/></Suspense></div>
         <div className="district-legend"><small><span className="hint-pointer">Drag to rotate · right-drag to pan · scroll to zoom</span><span className="hint-touch">Two fingers to rotate and zoom · one finger scrolls the page</span></small></div>
-        <div className="stage-bottom"><div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div><div className="map-controls"><button aria-label="Zoom out" onClick={()=>scene.current?.zoomBy(1/1.4)}><Minus size={15}/></button><button aria-label="Zoom in" onClick={()=>scene.current?.zoomBy(1.4)}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>setFocused(v=>!v)}><Focus size={15}/></button><button aria-label="Rotate view left" onClick={()=>scene.current?.rotateBy(-45)}><Undo2 size={15}/></button><button aria-label="Rotate view right" onClick={()=>scene.current?.rotateBy(45)}><Redo2 size={15}/></button><button aria-label="Exaggerate terrain relief three times" aria-pressed={relief} onClick={()=>setRelief(v=>!v)}><Mountain size={15}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
+        <div className="stage-bottom">{heatmap?<div className="model-legend heat-legend" role="img" aria-label="Heatmap legend: observed load from low to high; grey means no sample evidence"><span>Low</span><span className="heat-ramp">{HEAT_RAMP.map(c=><i key={c} style={{background:c}}/>)}</span><span>High observed load</span><span><i className="heat-none"/>No sample evidence</span></div>:<div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div>}<div className="map-controls"><button aria-label="Zoom out" onClick={()=>scene.current?.zoomBy(1/1.4)}><Minus size={15}/></button><button aria-label="Zoom in" onClick={()=>scene.current?.zoomBy(1.4)}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>setFocused(v=>!v)}><Focus size={15}/></button><button aria-label="Rotate view left" onClick={()=>scene.current?.rotateBy(-45)}><Undo2 size={15}/></button><button aria-label="Rotate view right" onClick={()=>scene.current?.rotateBy(45)}><Redo2 size={15}/></button><button aria-label="Colour buildings by observed load" aria-pressed={heatmap} onClick={()=>setHeatmap(v=>!v)}><Flame size={15}/></button><button aria-label="Exaggerate terrain relief three times" aria-pressed={relief} onClick={()=>setRelief(v=>!v)}><Mountain size={15}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
         {indexOpen&&<div className="index-popover"><div className="popover-top"><span>Select a building</span><button aria-label="Close building list" onClick={()=>setIndexOpen(false)}><X size={16}/></button></div>{index}</div>}
       </section>
       <aside className="prototype-inspector" aria-label="Selected building evidence"><div className="inspector-top"><span><span className="selection-dot"/>Selected building</span><button aria-label="Previous building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+campusBuildings.length-1)%campusBuildings.length].id)}><ArrowLeft size={14}/></button><button aria-label="Next building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+1)%campusBuildings.length].id)}><ArrowRight size={14}/></button></div>
