@@ -1,0 +1,102 @@
+# Building appearance research
+
+How the 3D campus buildings were derived. The plan outline of every building is
+the sourced OSM footprint. Everything vertical is a **schematic study** drawn
+from photographs, not a survey, and the app labels heights accordingly
+("Photo-based estimate").
+
+## Photographs consulted (viewed, not copied)
+
+| Subject | Source | What was observed |
+| --- | --- | --- |
+| James Thomason (Main) Building, daytime | Wikimedia Commons, "Main administrative building of IIT Roorkee.jpg" | Long, symmetrical cream/off-white block, two tall storeys with flat roof and parapet. Projecting central portico of tall columns carrying a pediment. Hemispherical white dome on a short drum above it, with a clock face and small lantern. A separate tall square tower rises behind, to the east of the dome. Projecting end pavilions with pilasters. |
+| Thomason Building, night | Wikimedia Commons, "Main building IIT Roorkee.jpg" | Same arcaded ground storey and central pediment; confirms symmetry and the clock/dome position. |
+| Thomason Building, street level | Google Street View (2013 capture) | Large white Roman-style columns on square plinths with moulded capitals, arched doorways, triangular pediments over windows, rusticated corner quoins and horizontal banding, cornice and balustrade. |
+| Central library | Wikimedia Commons, "Mahatma Gandhi Central Library.jpg"; Street View | Pink/buff sandstone cladding, a large glazed curtain-wall bay between stone piers, a projecting flat roof slab, broad stepped plaza with sandstone planters, and a low dome visible over the roofline. |
+| Departments (1960s blocks) | Street View, Commons "Architecture and Planning building" | White concrete frame with terracotta brick infill, deep window recesses, vertical fins, flat roofs, stair cores. |
+| Hostels (Bhawans) | Street View user photospheres, Commons "Govind Bhawan" | Plaster blocks of three to four storeys around lawns, balconies with solid parapets, terracotta/orange doors with teal frames, deep concrete chajjas, white rusticated corner piers. |
+
+Text sources (Wikipedia, IIT-R architecture profiles) were thin on facade
+description and are not cited for appearance.
+
+## Footprint review against satellite imagery
+
+OSM often traces a hostel or department *complex* as one filled outline even
+when the ground shows separate bars around lawns (Ravindra Bhawan is five bars
+and two wings, not a block). Satellite tiles of the campus were compared with
+the OSM outlines and the coarse ones were corrected:
+
+| Building | Correction |
+| --- | --- |
+| Ravindra Bhawan | OSM envelope replaced by the five E-W bars and two N-S wings; the enclosed ground is drawn as lawn. |
+| Govind Bhawan | Bars and wings traced; one large central lawn. |
+| Computer Science & Electronics (`ece`) | U-shaped block around a lawn instead of one slab. |
+| Mechanical Department | Scattered blocks instead of a 134 m x 135 m envelope over open ground. |
+| Management Studies | Central courtyard opened. |
+
+How: `tools/refine_footprints.py` converts shapes read from georeferenced
+screenshots (`tools/footprint-refinements.json`, pixel coordinates plus the
+tile's centre and metres-per-pixel) into rings in
+`src/designs/campus/refinements.json`. The original OSM rings stay in the
+source data, and refinements may extend at most a few metres beyond them.
+Pixels were read by eye, so corrections are approximate (about +/-2 m at
+0.31 m/px, +/-4 m at 0.62 m/px). No imagery or traced geometry is stored.
+Many other outlines (north hostels, most departments) already matched the
+imagery and were left alone; a few unmapped buildings are absent from OSM and
+therefore from the model.
+
+## Buildings missing from OSM
+
+| Building | Handling |
+| --- | --- |
+| Vivekananda Bhawan (EWS Bhawan) | Added from imagery as `vivekananda-bhawan` (`tools/footprint-additions.json` -> `tools/build_additions.py` -> `src/designs/campus/additions.json`). Two interlocking terraced C-shaped arms plus an east block; eight levels assumed from the place photo. |
+
+Other unmapped buildings probably exist (new construction since the OSM edit);
+the same tool adds them.
+
+## Terrain
+
+The campus is not flat. Estimated ground height (metres above sea level):
+
+| Place | Estimate |
+| --- | ---: |
+| Library, Govind Bhawan, Main Building plateau | about 270 |
+| Ravindra, Civil, Mechanical | 267-269 |
+| Rajiv Bhawan, Rajendra, SAC | 263-264 |
+| Jawahar Bhawan, Cautley, MAC | 262-263 |
+| Stadium | about 261 |
+
+Method: Copernicus GLO-30 DSM, minus a fitted canopy term (Meta/WRI canopy height)
+and building term (our footprints x heights); the SRTM and ASTER 30 m models
+(averaged, canopy not removed) agree within about 4 m and show the same ridge.
+Residual standard deviation 2.7 m, so single values are good to about +/-3 m
+while the 7-9 m fall from the plateau to the north and east is the signal.
+Buildings sit on the mean ground under their footprint with a foundation band to
+the low side. The relief toggle draws the same surface three times as tall.
+Reproduce with `tools/fetch_terrain.py` (needs rasterio and numpy).
+
+## How the model uses it
+
+- `src/designs/campus3d/styles.ts`: the seven parametric vocabularies
+  (colonial, sandstone, grid, hostel, sandblock, concrete, plain) and which
+  building takes which.
+- `src/designs/campus3d/buildingModel.ts`: wall, roof, window, balcony, column,
+  portico, dome and tower generators. Thomason anchor points (front faces north toward the Main Building lawns; dome, portico,
+  tower) are fixed in campus metres and unit-tested to sit on solid footprint,
+  outside the courtyard.
+- `src/designs/campus3d/terrain.ts`: ground, surfaces, roads and vegetation.
+
+## Known limits
+
+- Storey counts, bay spacing and window sizes are typical-for-style values.
+  Only Thomason (12.6 m) and the library (17 m, four levels) have photo-based
+  heights; everything else keeps the OSM height/levels tag or the earlier
+  assumption.
+- The library's roof dome, and the tower position behind the Thomason dome,
+  are read from low-resolution photos and should be confirmed on campus.
+- Context buildings use the style chosen by name/kind, so a department-style
+  facade on an unnamed block is a guess, not an observation.
+- Trees: the 17 mapped OSM trees are exact; additional planting inside mapped
+  gardens/parks and along main roads is illustrative.
+- MAC, SAC and LHC detailing (roof frames, diagonal screens, vertical louvers)
+  carries over the earlier SVG study and official-photo notes.

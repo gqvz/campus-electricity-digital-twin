@@ -6,21 +6,19 @@ const heroBuildings=[
   {id:'sac',name:'Students Activity Centre',floors:4},
 ]
 
-test('mapped hero shapes retain their rings when separated and reassembled', async ({ page }) => {
+test('hero buildings separate into one slab per floor and reassemble', async ({ page }) => {
   await page.goto('/')
+  const scene = page.getByTestId('campus-scene3d')
   for (const b of heroBuildings) {
-    const shape = page.locator(`.campus-building[data-building-id="${b.id}"]`)
-    await shape.focus()
-    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: new RegExp('^Select ' + b.name) }).dispatchEvent('click')
     await expect(page.locator('.evidence-content h2')).toHaveText(b.name)
-    await expect(page.getByRole('link', {name:'Map source ↗'})).toHaveAttribute('href', /openstreetmap.org/)
-    await page.getByRole('button', {name:'Separate floors',exact:true}).click()
-    await expect(shape.locator('[data-geometry="osm-footprint"]')).toHaveCount(b.floors)
-    const paths = await shape.locator('[data-geometry="osm-footprint"] > path').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('d')))
-    expect(paths.every(p=>p?.includes('L') && !p.includes('NaN'))).toBe(true)
-    if(b.id==='mac') expect(paths.every(p=>(p?.match(/M/g)??[]).length===4)).toBe(true)
-    await page.getByRole('button',{name:'Reassemble',exact:true}).click()
-    await expect(shape.locator('[data-detail]')).toHaveAttribute('data-detail',b.id)
+    await expect(scene).toHaveAttribute('data-selected', b.id)
+    await expect(page.getByRole('link', { name: 'Map source ↗' })).toHaveAttribute('href', /openstreetmap.org/)
+    await expect(scene).toHaveAttribute('data-floor-slices', '0')
+    await page.getByRole('button', { name: 'Separate floors', exact: true }).click()
+    await expect(scene).toHaveAttribute('data-floor-slices', String(b.floors))
+    await page.getByRole('button', { name: 'Reassemble', exact: true }).click()
+    await expect(scene).toHaveAttribute('data-floor-slices', '0')
   }
 })
 

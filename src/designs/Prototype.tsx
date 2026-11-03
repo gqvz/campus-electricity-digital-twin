@@ -1,44 +1,63 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Compass, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, X, Zap } from 'lucide-react'
+import { Mountain, ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, Clock3, Eye, FileText, Focus, Grid2X2, Layers, Map, Minus, Plus, Redo2, RotateCcw, Search, SlidersHorizontal, Sparkles, Undo2, X, Zap } from 'lucide-react'
 import { chromatic } from './theme'
-import { CampusDrawing } from './CampusDrawing'
-import { campusBuildings, caseEnergy, caseWatts, demoCases, floorName, loadFor, number, verifiedTotal } from './fixtures'
+import type { SceneHandle } from './CampusScene3D'
+// The WebGL scene (three.js) loads after the header, index and evidence panel.
+const CampusScene3D = lazy(() => import('./CampusScene3D').then(m => ({ default: m.CampusScene3D })))
+import { campusBuildings, caseEnergy, caseWatts, floorName, loadFor, number } from './fixtures'
 import type { CampusBuilding, Case } from './fixtures'
-import { campusStats, footprintSources } from './buildingGeometry'
+import { campusStats, footprintSources, metersPerSceneUnit } from './buildingGeometry'
+import { elevationAtLocal } from './campus3d/elevation'
+import { Link } from 'react-router-dom'
+import { useCases } from '../data/useCases'
+import { useAuth } from '../data/useAuth'
+import type { CaseSource } from '../data/repository'
+import { energyCoverage, formatDay, summarize } from '../data/summary'
 
 export function CubeMark() { return <svg width="28" height="32" viewBox="0 0 28 32" fill="none" aria-hidden="true"><path d="M14 1 27 8.5V23.5L14 31 1 23.5V8.5Z" stroke="currentColor" strokeWidth="1.4" /><path d="M1 8.5 14 16 27 8.5M14 16V31M7.5 5 20.5 12.5V27.2M7.5 12.2V27.2M1 16 14 23.5 27 16" stroke="currentColor" strokeWidth="1.1" /></svg> }
 const windows = ['All times','Morning','Afternoon','Evening','Night']
 const devices = ['All devices','Lights','Fans','AC']
 
-function Evidence({ building, cases, floor, onCase }: { building: CampusBuilding; cases: Case[]; floor: number|null; onCase: (c: Case)=>void }) {
+const mainBuilding = campusBuildings.find(b => b.id === 'osm-relation-8255183')
+const groundOf = (b: CampusBuilding) => elevationAtLocal((b.x + b.w/2) * metersPerSceneUnit, (b.y + b.d/2) * metersPerSceneUnit)
+function GroundNote({ building }: { building: CampusBuilding }) {
+  const here = groundOf(building), ref = mainBuilding ? groundOf(mainBuilding) : here, diff = here - ref
+  return <p className="data-note">Ground about {Math.round(here)} m above sea level{building.id === mainBuilding?.id ? '' : Math.abs(diff) < 1 ? ', level with the Main Building' : `, ${Math.abs(Math.round(diff))} m ${diff < 0 ? 'below' : 'above'} the Main Building`}. Estimated from satellite elevation models, about ±3 m.</p>
+}
+
+function Evidence({ building, cases, floor, onCase, demo }: { building: CampusBuilding; cases: Case[]; floor: number|null; onCase: (c: Case)=>void; demo: boolean }) {
   const list = cases.filter(c=>c.buildingId===building.id&&(floor===null||c.floor===floor))
-  const watts = list.reduce((sum,c)=>sum+caseWatts(c),0)
-  const energy = list.reduce((sum,c)=>sum+(caseEnergy(c)??0),0)
+  const sum = summarize(list), watts = sum.watts, energy = sum.kwh
+  const latestDay = list.map(c=>c.observedOn??'2025-02-14').sort().pop()
   if(!building.auditScope)return <div className="evidence-content context-evidence">
     <div className="inspector-label"><span>{building.kind}</span><span className="hero-badge">Mapped context</span></div>
     <h2>{building.name}</h2>
     <div className="building-subtitle"><a href={footprintSources[building.id].source} target="_blank" rel="noreferrer">Map source ↗</a></div>
     <div className="prototype-empty"><Map size={23}/><h3>Not audited</h3><p>This building is included for campus context. No electricity-wastage observations have been attached.</p></div>
     <div className="intervention"><div><h3>Mapped footprint, shared scale</h3><p>Location, orientation and outline come from OSM. Approximate visualization height: {building.heightMeters?.toFixed(1)} m ({building.heightBasis?.toLowerCase()}).</p></div></div>
+    {footprintSources[building.id].additionNote&&<p className="data-note">{footprintSources[building.id].additionNote}</p>}
     {footprintSources[building.id].nameInference&&<p className="data-note">Name inferred from proximity to the APJ pin linked from IITR’s navigation page; confirm on campus.</p>}
+    <GroundNote building={building} />
     <p className="data-note">No surveyed elevation or room layout. An unnamed feature keeps its OSM identity rather than an invented name.</p>
   </div>
   return <div className="evidence-content">
     <div className="inspector-label"><span>{building.kind}</span><span className="hero-badge">{building.hero?'Architectural study':'Mapped outline'}</span></div>
     <h2>{building.name}</h2>
     <div className="building-subtitle">{building.short} <span>/</span> {building.floors} schematic floors <span>/</span> <a href={footprintSources[building.id as keyof typeof footprintSources].source} target="_blank" rel="noreferrer">Map source ↗</a></div>
-    <div className="load-figure"><strong>{number(watts)}</strong><span>W<br /><small>observed avoidable load</small></span></div>
+    <div className="load-figure"><strong>{number(watts)}</strong><span>W<br /><small>avoidable load, summed over {sum.sightings} sighting{sum.sightings===1?'':'s'}</small></span></div>
     <div className="load-segments" aria-hidden="true">{Array.from({length:24},(_,i)=><i key={i} style={{opacity:i<Math.min(24,Math.ceil(watts/60))?1:.15}} />)}</div>
-    <div className="evidence-meta"><span><Check size={13} /> {list.length} sample cases</span><span><Clock3 size={13} /> 14 Feb, 2025</span></div>
+    <div className="evidence-meta"><span><Check size={13} /> {list.length} {demo?'sample ':''}sighting{list.length===1?'':'s'}</span><span><Clock3 size={13} /> {latestDay?`Latest ${formatDay(latestDay)}`:'No date'}</span></div>
     <div className="evidence-title"><h3>Evidence trail</h3><span>{floor===null?'All floors':floorName(floor)}</span></div>
     {list.length ? list.slice(0,3).map(c=><button className="observation-card" key={c.id} onClick={()=>onCase(c)}>
-      <span className="obs-top"><span>{c.id} <span className="muted-copy">/ {floorName(c.floor)}</span></span><span className="obs-status">Unoccupied</span></span>
+      <span className="obs-top"><span>{c.id} <span className="muted-copy">/ {floorName(c.floor)}</span></span><span className="obs-status">{c.occupied===true?'Occupied':'Unoccupied'}{c.confidence==='inferred'?' · inferred':''}</span></span>
       <b>{c.zone}</b><span className="obs-bottom"><span><Zap size={12} /> {c.count} {c.device.toLowerCase()} active</span><strong>{caseWatts(c)} W <ArrowRight size={13} /></strong></span>
     </button>) : <div className="prototype-empty"><Eye size={19} /><p>No sample evidence in this selection.</p><small>Try another time window, floor, or building.</small></div>}
     <div className="intervention"><span className="intervention-icon"><Sparkles size={16} /></span><div><h3>Small change, real potential</h3><p>{list[0]?.recommendation??'Audit this building before recommending an intervention.'}</p></div></div>
-    <div className="verified-energy"><span>Verified-duration estimate</span><strong>{energy?`${energy.toFixed(2)} kWh`:'Duration not verified'}</strong></div>
-    <p className="data-note">Sample observations for design review. A single sighting supports watts; energy requires a verified duration.</p>
+    <div className="verified-energy"><span>Verified-duration energy</span><strong>{energy===null?'Duration not verified':`${energy.toFixed(2)} kWh`}</strong></div>
+    <p className="data-note">{energyCoverage(sum)}{sum.unverifiedWatts>0&&sum.kwh!==null?` ${number(sum.unverifiedWatts)} W of the load has no duration.`:''} Sightings at different times are added as a comparison measure, not concurrent demand.</p>
+    <GroundNote building={building} />
+    <p className="data-note">{demo?'Sample observations for design review. ':''}A single sighting supports watts; energy requires a verified duration, assumed on from the sighting until the later check.</p>
   </div>
 }
 
@@ -52,10 +71,10 @@ function BuildingList({ cases, selected, onSelect, query, setQuery, kind, setKin
   </div>
 }
 
-function Findings({ cases, onSelect }: { cases:Case[]; onSelect:(id:string)=>void }) {
+function Findings({ cases, onSelect, demo }: { cases:Case[]; onSelect:(id:string)=>void; demo:boolean }) {
   const ranked = [...campusBuildings].sort((a,b)=>loadFor(b.id,cases)-loadFor(a.id,cases))
   const maximum = Math.max(1,...ranked.map(b=>loadFor(b.id,cases)))
-  return <div className="findings-surface"><div className="findings-heading"><span className="small-label">From the sample audit</span><h2>Where the next check matters.</h2><p>Compare recorded observations, then open a building to see the evidence.</p></div><div className="findings-columns"><section><h3>Building comparison <span>Observed W</span></h3>{ranked.filter(b=>loadFor(b.id,cases)>0).map(b=><button className="comparison-row" key={b.id} onClick={()=>onSelect(b.id)}><span>{b.name}</span><div><i style={{width:`${loadFor(b.id,cases)/maximum*100}%`}} /></div><b>{number(loadFor(b.id,cases))}</b></button>)}</section><section><h3>Device contribution</h3>{['Lights','Fans','AC'].map(device=>{const watts=cases.filter(c=>c.device===device).reduce((sum,c)=>sum+caseWatts(c),0);return <div key={device} className="device-breakdown"><span><Zap size={17}/>{device}</span><b>{number(watts)} W</b></div>})}<div className="findings-note"><Check size={18}/><p><b>{verifiedTotal.toFixed(2)} kWh</b> has an explicit verified duration in the complete fixture. Remaining observations stay in watts.</p></div><h3>Recommended first steps</h3><ol><li>Assign last-person-out checks.</li><li>Make switch labels clear.</li><li>Pilot occupancy controls in repeat hotspots.</li></ol></section></div><p className="data-note">Illustrative data. Loads recorded at different times are a comparison measure, not a campus-wide concurrent demand reading.</p></div>
+  return <div className="findings-surface"><div className="findings-heading"><span className="small-label">From the sample audit</span><h2>Where the next check matters.</h2><p>Compare recorded observations, then open a building to see the evidence.</p></div><div className="findings-columns"><section><h3>Building comparison <span>Observed W</span></h3>{ranked.filter(b=>loadFor(b.id,cases)>0).map(b=><button className="comparison-row" key={b.id} onClick={()=>onSelect(b.id)}><span>{b.name}</span><div><i style={{width:`${loadFor(b.id,cases)/maximum*100}%`}} /></div><b>{number(loadFor(b.id,cases))}</b></button>)}</section><section><h3>Device contribution</h3>{['Lights','Fans','AC','Other'].map(device=>{const watts=cases.filter(c=>c.device===device).reduce((sum,c)=>sum+caseWatts(c),0);return <div key={device} className="device-breakdown"><span><Zap size={17}/>{device}</span><b>{number(watts)} W</b></div>})}<div className="findings-note"><Check size={18}/><p><b>{(summarize(cases).kwh??0).toFixed(2)} kWh</b> comes from {summarize(cases).verified} of {cases.length} sightings that have a verified duration. The rest stay in watts.</p></div><h3>Recommended first steps</h3><ol><li>Assign last-person-out checks.</li><li>Make switch labels clear.</li><li>Pilot occupancy controls in repeat hotspots.</li></ol></section></div><p className="data-note">{demo?'Illustrative data. ':''}Loads recorded at different times are a comparison measure, not a campus-wide concurrent demand reading.</p></div>
 }
 
 export function ChromaticApp() {
@@ -69,8 +88,8 @@ export function ChromaticApp() {
   const [kind,setKind] = useState('All buildings')
   const [floor,setFloor] = useState<number|null>(null)
   const [exploded,setExploded] = useState(false)
-  const [zoom,setZoom] = useState(1)
-  const [rotation,setRotation] = useState(0)
+  const scene = useRef<SceneHandle>(null)
+  const [relief, setRelief] = useState(false)
   const [focused,setFocused] = useState(false)
   const [resetKey,setResetKey] = useState(0)
   const [markers,setMarkers] = useState(true)
@@ -92,11 +111,16 @@ export function ChromaticApp() {
     return()=>{document.removeEventListener('keydown',onKey,true);previous?.focus()}
   },[caseOpen])
   const building = campusBuildings.find(b=>b.id===selected)!
-  const cases = useMemo(()=>demoCases.filter(c=>(device==='All devices'||c.device===device)&&(period==='All times'||(period==='Morning'&&c.hour<12)||(period==='Afternoon'&&c.hour>=12&&c.hour<17)||(period==='Evening'&&c.hour>=17&&c.hour<21)||(period==='Night'&&c.hour>=21))),[period,device])
+  const data = useCases()
+  const auth = useAuth()
+  const source: CaseSource|null = data.source
+  const allCases = source?.cases ?? []
+  const cases = useMemo(()=>allCases.filter(c=>(device==='All devices'||c.device===device)&&(period==='All times'||(period==='Morning'&&c.hour<12)||(period==='Afternoon'&&c.hour>=12&&c.hour<17)||(period==='Evening'&&c.hour>=17&&c.hour<21)||(period==='Night'&&c.hour>=21))),[allCases,period,device])
   const visible = campusBuildings.filter(b=>(kind==='All buildings'||(kind==='Audit scope'?b.auditScope:b.kind===kind))&&`${b.name} ${b.short}`.toLowerCase().includes(query.toLowerCase())).map(b=>b.id)
   const select = (id:string) => { setSelected(id);setQuery('');setFloor(null);setExploded(false);setCaseOpen(null);setIndexOpen(false);setView('campus') }
-  const reset = () => {setSelected('lhc');setZoom(1);setFocused(false);setResetKey(v=>v+1);setRotation(0);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
-  const nextTour = () => {const step=(tour??-1)+1;if(step>4){setTour(null);return}setTour(step);setView(step===4?'findings':'campus');if(step===1)select('mgcl');if(step===2){select('lhc');setExploded(true)}if(step===3)setPeriod('Evening')}
+  const reset = () => {setRelief(false);setSelected('lhc');setFocused(false);setResetKey(v=>v+1);setFloor(null);setExploded(false);setKind('All buildings');setQuery('');setPeriod('All times');setDevice('All devices');setMarkers(true)}
+  const hotspot = useMemo(()=>[...campusBuildings].filter(b=>b.auditScope).sort((a,b)=>loadFor(b.id,allCases)-loadFor(a.id,allCases))[0],[allCases])
+  const nextTour = () => {const step=(tour??-1)+1;if(step>4){setTour(null);return}setTour(step);setView(step===4?'findings':'campus');if(step===1&&hotspot&&loadFor(hotspot.id,allCases)>0)select(hotspot.id);if(step===2){select('lhc');setExploded(true)}if(step===3)setPeriod('Evening')}
   const style = { '--p-bg':p.bg,'--p-surface':p.surface,'--p-ink':p.ink,'--p-muted':p.muted,'--p-border':p.border,'--p-accent':p.accent,'--p-on-accent':p.onAccent,'--p-scene':p.scene,'--p-high':p.high,'--p-medium':p.medium,'--p-radius':`${direction.radius}px`,'--p-display':`'${direction.display}', sans-serif`,'--p-body':`'${direction.body}', sans-serif`,'--p-mono':`'${direction.mono}', monospace` } as CSSProperties
   const index = <BuildingList cases={cases} selected={selected} onSelect={select} query={query} setQuery={setQuery} kind={kind} setKind={setKind} />
   const download = () => {
@@ -105,27 +129,29 @@ export function ChromaticApp() {
   }
   return <div className="prototype direction-chromatic" style={style}>
     <a className="skip-link" href="#campus-workspace">Skip to campus workspace</a>
-    <header className="prototype-header"><div className="prototype-brand"><CubeMark/><div><b>IITR Pulse<span className="brand-stop">.</span></b><span>Campus electricity audit</span></div></div><nav className="prototype-nav" aria-label="Audit views"><button data-active={view==='campus'} onClick={()=>setView('campus')}><Map size={15}/>Campus</button><button data-active={view==='findings'} onClick={()=>setView('findings')}><Grid2X2 size={15}/>Findings</button></nav><div className="prototype-header-right"><span className="sample-tag">Illustrative data</span><button className="tour-button" aria-label="Take a tour" onClick={()=>{reset();setView('campus');setTour(0)}}><span>Take a tour</span><ArrowRight size={15}/></button></div></header>
-    <div className="prototype-titlebar"><div><span className="small-label">IIT Roorkee / selected audit scope</span><h1>See the campus differently.</h1></div><div className="scope-date"><span>Sample audit</span><b>14 February 2025</b><span>{campusStats.buildings} mapped / 12 in audit scope</span></div></div>
+    <header className="prototype-header"><div className="prototype-brand"><CubeMark/><div><b>IITR Pulse<span className="brand-stop">.</span></b><span>Campus electricity audit</span></div></div><nav className="prototype-nav" aria-label="Audit views"><button data-active={view==='campus'} onClick={()=>setView('campus')}><Map size={15}/>Campus</button><button data-active={view==='findings'} onClick={()=>setView('findings')}><Grid2X2 size={15}/>Findings</button></nav><div className="prototype-header-right"><Link className="header-link" to="/methodology">Method</Link><Link className="header-link" to={auth.isTeam?'/audit':'/login'}>{auth.isTeam?'Audit':'Team'}</Link><span className="sample-tag" data-mode={source?.mode??'loading'}>{data.status==='loading'?'Loading…':source?.mode==='live'?`${source.observationCount} published observations`:'Illustrative data'}</span><button className="tour-button" aria-label="Take a tour" onClick={()=>{reset();setView('campus');setTour(0)}}><span>Take a tour</span><ArrowRight size={15}/></button></div></header>
+    <div className="prototype-titlebar"><div><span className="small-label">IIT Roorkee / selected audit scope</span><h1>See the campus differently.</h1></div><div className="scope-date"><span>{source?.mode==='live'?'Latest publication':'Sample audit'}</span><b>{source?.mode==='live'?(source.updatedAt?new Date(source.updatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}):'None yet'):'14 February 2025'}</b><span>{campusStats.buildings} mapped / 12 in audit scope</span></div></div>
     <main id="campus-workspace" className="prototype-body" tabIndex={-1}>
       <aside className="persistent-index"><div className="district-title"><span className="small-label">Explore the campus</span><h2>Places & evidence</h2></div>{index}<div className="sidebar-caption"><FileText size={15}/><p>Every marker opens an observation.<br/>Every observation has a source.</p></div></aside>
-      {view==='findings' ? <Findings cases={cases} onSelect={select}/> : <>
+      {view==='findings' ? <Findings cases={cases} onSelect={select} demo={source?.mode!=='live'}/> : <>
       <section className="model-stage" aria-label="Campus explorer">
         <div className="stage-top"><div className="stage-intro"><span className="stage-pill"><Zap size={13}/>Electricity</span><span className="stage-location">IITR / {campusStats.buildings} mapped buildings</span></div><div className="stage-actions"><button aria-label="Show building list" onClick={()=>setIndexOpen(!indexOpen)}><Search size={15}/><span>Buildings</span></button><button aria-label={markers?'Hide electricity markers':'Show electricity markers'} aria-pressed={markers} onClick={()=>setMarkers(!markers)}><Eye size={15}/></button></div></div>
+        {data.status==='error'&&<div className="stage-banner" role="alert"><span>Could not load observations: {data.error}</span><button onClick={data.reload}>Retry</button></div>}
+        {source?.mode==='live'&&source.observationCount===0&&<div className="stage-banner" role="status"><span>No published observations yet. Evidence appears here once audits are reviewed and published.</span></div>}
         <div className="stage-summary"><div><strong>{cases.length.toString().padStart(2,'0')}</strong><span>Sample observations</span></div><div><strong>{new Set(cases.map(c=>c.buildingId)).size.toString().padStart(2,'0')}<small>/12</small></strong><span>Buildings with evidence</span></div></div>
-        <div className="drawing-wrap"><CampusDrawing direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} zoom={zoom} rotation={rotation} markers={markers} focus={focused} resetKey={resetKey}/></div>
-        <div className="district-legend"><span><i style={{background:'#5594ad'}}/>Academic</span><span><i style={{background:'#e9a099'}}/>Residences</span><span><i style={{background:'#8ab298'}}/>Common spaces</span><small>Colors indicate visual districts</small></div>
-        <div className="stage-bottom"><div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div><div className="map-controls"><button aria-label="Zoom out" disabled={zoom<=.7} onClick={()=>setZoom(v=>Math.max(.7,v/1.4))}><Minus size={15}/></button><button aria-label="Zoom in" disabled={zoom>=8} onClick={()=>setZoom(v=>Math.min(8,v*1.4))}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>{setFocused(v=>!v);setZoom(focused?1:4);setResetKey(v=>v+1)}}><Focus size={15}/></button><button aria-label="Rotate model" onClick={()=>setRotation(v=>v===12?-12:12)}><Compass size={16}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
+        <div className="drawing-wrap"><Suspense fallback={<p className="scene-loading3d" role="status">Loading the 3D campus…</p>}><CampusScene3D ref={scene} direction={direction} selected={selected} onSelect={select} cases={cases} visible={visible} exploded={exploded} selectedFloor={floor} markers={markers} focus={focused} resetKey={resetKey} terrainScale={relief?3:1}/></Suspense></div>
+        <div className="district-legend"><small><span className="hint-pointer">Drag to rotate · right-drag to pan · scroll to zoom</span><span className="hint-touch">Two fingers to rotate and zoom · one finger scrolls the page</span></small></div>
+        <div className="stage-bottom"><div className="model-legend"><span><i/>Observed load</span><span><i/>No sample evidence</span></div><div className="map-controls"><button aria-label="Zoom out" onClick={()=>scene.current?.zoomBy(1/1.4)}><Minus size={15}/></button><button aria-label="Zoom in" onClick={()=>scene.current?.zoomBy(1.4)}><Plus size={15}/></button><button aria-label="Focus selected building" aria-pressed={focused} onClick={()=>setFocused(v=>!v)}><Focus size={15}/></button><button aria-label="Rotate view left" onClick={()=>scene.current?.rotateBy(-45)}><Undo2 size={15}/></button><button aria-label="Rotate view right" onClick={()=>scene.current?.rotateBy(45)}><Redo2 size={15}/></button><button aria-label="Exaggerate terrain relief three times" aria-pressed={relief} onClick={()=>setRelief(v=>!v)}><Mountain size={15}/></button><button aria-label="Reset campus" onClick={reset}><RotateCcw size={14}/></button></div></div>
         {indexOpen&&<div className="index-popover"><div className="popover-top"><span>Select a building</span><button aria-label="Close building list" onClick={()=>setIndexOpen(false)}><X size={16}/></button></div>{index}</div>}
       </section>
       <aside className="prototype-inspector" aria-label="Selected building evidence"><div className="inspector-top"><span><span className="selection-dot"/>Selected building</span><button aria-label="Previous building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+campusBuildings.length-1)%campusBuildings.length].id)}><ArrowLeft size={14}/></button><button aria-label="Next building" onClick={()=>select(campusBuildings[(campusBuildings.findIndex(b=>b.id===selected)+1)%campusBuildings.length].id)}><ArrowRight size={14}/></button></div>
         {building.hero&&<div className="floor-toolbar"><button className="explode-button" aria-pressed={exploded} onClick={()=>{setExploded(v=>!v);setFloor(null)}}><Layers size={14}/>{exploded?'Reassemble':'Separate floors'}</button><label><span className="sr-only">Select floor</span><select value={floor??'all'} onChange={e=>{setFloor(e.target.value==='all'?null:Number(e.target.value));setExploded(true)}}><option value="all">All floors</option>{Array.from({length:building.floors},(_,i)=><option key={i} value={i}>{floorName(i)}</option>)}</select></label></div>}
-        <Evidence building={building} cases={cases} floor={floor} onCase={setCaseOpen}/>
+        <Evidence building={building} cases={cases} floor={floor} onCase={setCaseOpen} demo={source?.mode!=='live'}/>
       </aside></>}
     </main>
     <footer className="prototype-timeline"><div className="timeline-title"><Clock3 size={17}/><div><b>Recorded audit window</b><span>Filter by observation time</span></div></div><div className="timeline-periods" role="group" aria-label="Recorded audit window">{windows.map(w=><button key={w} aria-pressed={period===w} onClick={()=>setPeriod(w)}>{w}<span>{w==='Morning'?'06–12':w==='Afternoon'?'12–17':w==='Evening'?'17–21':w==='Night'?'21–24':'All records'}</span></button>)}</div><label className="device-select"><SlidersHorizontal size={14}/><span className="sr-only">Device filter</span><select value={device} onChange={e=>setDevice(e.target.value)}>{devices.map(d=><option key={d}>{d}</option>)}</select></label><button className="export-button" aria-label="Download sample observations CSV" onClick={download}><ArrowDownToLine size={15}/></button></footer>
     <div className="prototype-footnote"><span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> / <a href="/geometry-sources.txt" target="_blank" rel="noreferrer">Shape references ↗</a></span><span>Geographic footprints. Estimated heights. Sample observations.</span></div>
-    {caseOpen&&<div className="case-detail-overlay" ref={caseDialog} role="dialog" aria-modal="true" aria-label="Expanded case file"><section className="case-detail"><div className="detail-top"><span>{caseOpen.id} / Sample case file</span><button aria-label="Close case file" onClick={()=>setCaseOpen(null)}><X size={19}/></button></div><h2>{caseOpen.zone}</h2><p>{building.name} / {floorName(caseOpen.floor)}</p><div className="case-detail-load"><strong>{caseWatts(caseOpen)}<small> W</small></strong><span>Unoccupied, appliances active</span></div><dl><div><dt>Observed</dt><dd>14 Feb 2025, {caseOpen.time}</dd></div><div><dt>Device count</dt><dd>{caseOpen.count} {caseOpen.device.toLowerCase()}</dd></div><div><dt>Configured wattage</dt><dd>{caseOpen.unitWatts} W per device</dd></div><div><dt>Verification</dt><dd>{caseOpen.verification??'No verified duration'}</dd></div><div><dt>Energy estimate</dt><dd>{caseEnergy(caseOpen)===null?'Not available':`${caseEnergy(caseOpen)!.toFixed(2)} kWh`}</dd></div><div><dt>Confidence / state</dt><dd>Direct observation / sample published case</dd></div></dl><div className="intervention"><Sparkles size={18}/><p>{caseOpen.recommendation}</p></div><p className="data-note">Illustrative case for interface review.</p><button className="detail-done" onClick={()=>setCaseOpen(null)}>Back to campus <ArrowRight size={16}/></button></section></div>}
-    {tour!==null&&<section className="tour-notes" aria-label="Guided tour"><div><span>{Math.max(0,tour)+1} / 5</span><button aria-label="Close guided tour" onClick={()=>setTour(null)}><X size={14}/></button></div><h3>{['Campus audit scope','Largest sample hotspot','Look between the floors','Follow the evening round','Three small interventions'][Math.max(0,tour)]}</h3><p>{['The mapped campus uses one shared geographic scale. Twelve buildings have sample audit scope; the rest are context. Drag the map or focus a building.','The library case records an AC running in an unoccupied room. The evidence supports watts, with no verified duration.','LHC separates into schematic levels. Select a floor to narrow its evidence.','The evening lens shows only the observations recorded between 17:00 and 21:00.','Start with room ownership, clear switch labels, and repeat-hotspot checks.'][Math.max(0,tour)]}</p><button onClick={nextTour}>{tour===4?'Finish tour':'Next stop'} <ArrowRight size={14}/></button></section>}
+    {caseOpen&&<div className="case-detail-overlay" ref={caseDialog} role="dialog" aria-modal="true" aria-label="Expanded case file"><section className="case-detail"><div className="detail-top"><span>{caseOpen.id} / {source?.mode==='live'?'Published case file':'Sample case file'}</span><button aria-label="Close case file" onClick={()=>setCaseOpen(null)}><X size={19}/></button></div><h2>{caseOpen.zone}</h2><p>{building.name} / {floorName(caseOpen.floor)}</p><div className="case-detail-load"><strong>{caseWatts(caseOpen)}<small> W</small></strong><span>{caseOpen.occupied===true?'Occupied, appliances active':'Unoccupied, appliances active'}</span></div><dl><div><dt>Observed</dt><dd>{formatDay(caseOpen.observedOn??'2025-02-14')}, {caseOpen.time}</dd></div><div><dt>Device count</dt><dd>{caseOpen.count} {caseOpen.device.toLowerCase()}</dd></div><div><dt>Configured wattage</dt><dd>{caseOpen.unitWatts} W per device</dd></div><div><dt>Verification</dt><dd>{caseOpen.verification??'No verified duration'}</dd></div><div><dt>Energy estimate</dt><dd>{caseEnergy(caseOpen)===null?'Not available: no verified duration':`${caseEnergy(caseOpen)!.toFixed(2)} kWh, assuming it stayed on until the later check`}</dd></div><div><dt>Confidence / state</dt><dd>{caseOpen.confidence==='inferred'?'Inferred':'Direct observation'} / {source?.mode==='live'?'published':'sample published case'}</dd></div></dl><div className="intervention"><Sparkles size={18}/><p>{caseOpen.recommendation}</p></div>{source?.mode!=='live'&&<p className="data-note">Illustrative case for interface review.</p>}<button className="detail-done" onClick={()=>setCaseOpen(null)}>Back to campus <ArrowRight size={16}/></button></section></div>}
+    {tour!==null&&<section className="tour-notes" aria-label="Guided tour"><div><span>{Math.max(0,tour)+1} / 5</span><button aria-label="Close guided tour" onClick={()=>setTour(null)}><X size={14}/></button></div><h3>{['Campus audit scope','Largest recorded hotspot','Look between the floors','Follow the evening round','Three small interventions'][Math.max(0,tour)]}</h3><p>{['The mapped campus uses one shared geographic scale. Twelve buildings have sample audit scope; the rest are context. Drag to rotate the campus, or focus a building.',(hotspot&&loadFor(hotspot.id,allCases)>0?`${hotspot.name} has the highest recorded load: ${number(loadFor(hotspot.id,allCases))} W across its observations. Watts describe what was seen; energy needs a verified duration.`:'No observations are published yet, so there is no hotspot to show.'),'LHC separates into schematic levels. Select a floor to narrow its evidence.','The evening lens shows only the observations recorded between 17:00 and 21:00.','Start with room ownership, clear switch labels, and repeat-hotspot checks.'][Math.max(0,tour)]}</p><button onClick={nextTour}>{tour===4?'Finish tour':'Next stop'} <ArrowRight size={14}/></button></section>}
   </div>
 }

@@ -20,7 +20,7 @@ test('keyboard focus, evidence honesty, CSV export and the five-stop tour work',
   await expect(page.getByRole('link', { name: 'Skip to campus workspace' })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.locator('#campus-workspace')).toBeFocused()
-  await page.locator('.campus-building[data-building-id="mgcl"]').focus()
+  await page.getByRole('button', { name: /^Select Mahatma Gandhi Central Library/ }).focus()
   await page.keyboard.press('Enter')
   const trigger = page.getByRole('button', { name: /P-004/ })
   await trigger.click()
@@ -43,7 +43,7 @@ test('keyboard focus, evidence honesty, CSV export and the five-stop tour work',
   expect(rows.find(r=>r.startsWith('P-004,'))?.split(',').at(-1)).toBe('')
   await page.getByRole('button', { name: 'Take a tour' }).click()
   const tour = page.getByRole('region', { name: 'Guided tour' })
-  for (const heading of ['Campus audit scope', 'Largest sample hotspot', 'Look between the floors', 'Follow the evening round', 'Three small interventions']) {
+  for (const heading of ['Campus audit scope', 'Largest recorded hotspot', 'Look between the floors', 'Follow the evening round', 'Three small interventions']) {
     await expect(tour.getByRole('heading')).toHaveText(heading)
     await tour.getByRole('button', { name: heading==='Three small interventions'?'Finish tour':'Next stop' }).click()
   }
@@ -71,7 +71,7 @@ test('tablet and mobile keep accessible controls and reflow', async ({ page }) =
     await page.evaluate(() => document.fonts.ready)
     await expect(page.locator('.evidence-content h2')).toHaveText('Lecture Hall Complex')
     await page.screenshot({ path: `artifacts/designs/chromatic-desktop.png`, fullPage: true })
-    await page.locator('.campus-building[aria-label^="Select Mahatma"]').click()
+    await page.getByRole('button', { name: /^Select Mahatma/ }).dispatchEvent('click')
     await expect(page.locator('.evidence-content h2')).toHaveText('Mahatma Gandhi Central Library')
     await page.getByRole('button', { name: /P-004/ }).click()
     await expect(page.locator('.case-detail')).toContainText('No verified duration')

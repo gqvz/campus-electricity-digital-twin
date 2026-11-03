@@ -1,0 +1,35 @@
+IITR Pulse backend setup (about 15 minutes)
+
+1. Create a Supabase project (free tier is enough). Note the Project URL and the anon public key
+   (Project settings > API). Never put the service-role key in this repo or in Vercel env vars
+   that start with VITE_.
+
+2. Apply the schema and seed, either in the SQL editor (paste in order) or with the CLI:
+     supabase link --project-ref <ref>
+     supabase db push                       # runs supabase/migrations/*.sql
+     psql "$DATABASE_URL" -f supabase/seed.sql   # 231 buildings (regenerate: npx vite-node tools/gen-seed.ts)
+
+3. Check the security rules (must print no errors):
+     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls.test.sql
+
+4. Auth: Authentication > Providers > Email (magic link on, sign-ups OFF so only invited
+   addresses can join). Authentication > URL configuration: add your site URL and
+   <site>/audit as redirect URLs. Invite each team member from the dashboard.
+
+5. Add team members (SQL editor), one row per invited user:
+     insert into team_members (user_id, display_name, role)
+       select id, 'Garvit', 'admin' from auth.users where email = 'you@example.com';
+   Roles: auditor (create drafts), reviewer (approve/publish), admin (also edits buildings).
+   Use a different person to review than the one who authored.
+
+6. Storage: the migration creates 'evidence' (private) and 'evidence-public' (public). Photos reach
+   the public bucket only after a reviewer confirms them in /review.
+
+7. Frontend: copy .env.example to .env.local and fill VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.
+   On Vercel set the same two variables. Without them the app runs in demo mode on fixtures.
+
+Data rules enforced in the database
+  - watts = device_count * unit_watts (generated column)
+  - kwh exists only with a verified duration (a later verified_at, at most 24 h)
+  - anonymous users read only public_observations / public_evidence_photos / buildings
+  - publishing is blocked while any attached photo is unchecked
