@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { shot } from './shot'
 
 test('the 3D campus can be rotated, panned and zoomed, and context is not audit evidence', async ({ page }) => {
   await page.goto('/')
@@ -48,7 +49,7 @@ test('the 3D campus can be rotated, panned and zoomed, and context is not audit 
   await expect(page.getByRole('button', { name: 'Focus selected building', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(zoom, { timeout: 10000 }).toBeGreaterThan(3.5)
   await page.waitForTimeout(500)
-  await page.screenshot({ path: 'artifacts/designs/geographic-main-focused.png', fullPage: true })
+  await shot(page, 'artifacts/designs/geographic-main-focused.png')
   await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
   await expect.poll(zoom, { timeout: 10000 }).toBeLessThan(1.1)
 })
