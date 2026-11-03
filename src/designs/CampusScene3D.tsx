@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { Zap } from 'lucide-react'
 import type { CampusTheme } from './theme'
 import { campusBuildings, loadFor, number } from './fixtures'
+import { HEAT_NONE, HEAT_RAMP, heatBin } from './campus3d/heat'
 import type { CampusBuilding, Case } from './fixtures'
 import { floorSliceModel, modelFor } from './campus3d/buildingModel'
 import { buildGround, buildRoads, buildSurfaces, buildTrees, campusBounds } from './campus3d/terrain'
@@ -20,7 +21,7 @@ export type SceneHandle = {
 
 type Props = {
   direction: CampusTheme; selected: string; onSelect: (id: string) => void; cases?: Case[]; visible?: string[]
-  exploded?: boolean; selectedFloor?: number | null; markers?: boolean; focus?: boolean; resetKey?: number
+  exploded?: boolean; selectedFloor?: number | null; markers?: boolean; focus?: boolean; resetKey?: number; heatmap?: boolean
   /** Vertical exaggeration of the ground; 1 is true scale. */
   terrainScale?: number
 }
@@ -56,9 +57,13 @@ const selectedGlass = glassMaterial.clone(); selectedGlass.emissive = new THREE.
 const dimSolid = solidMaterial.clone(); dimSolid.transparent = true; dimSolid.opacity = .35
 const dimGlass = glassMaterial.clone(); dimGlass.transparent = true; dimGlass.opacity = .35
 
-type MeshProps = { terrainScale: number; b: CampusBuilding; selected: boolean; hovered: boolean; watts: number; exploded: boolean; floor: number | null; accent: string; onSelect: (id: string) => void; onHover: (id: string | null) => void; markers: boolean }
+const heatMaterial = (hex: string, glass: boolean) => new THREE.MeshStandardMaterial({ color: hex, roughness: glass ? .3 : .9, metalness: 0 })
+const heatSolid = [...HEAT_RAMP, HEAT_NONE].map(c => heatMaterial(c, false))
+const heatGlass = [...HEAT_RAMP, HEAT_NONE].map(c => { const m = heatMaterial(c, true); m.color.multiplyScalar(.82); return m })
 
-const BuildingMesh = memo(function BuildingMesh({ terrainScale, b, selected, hovered, watts, exploded, floor, accent, onSelect, onHover, markers }: MeshProps) {
+type MeshProps = { heatBin: number | null;  terrainScale: number; b: CampusBuilding; selected: boolean; hovered: boolean; watts: number; exploded: boolean; floor: number | null; accent: string; onSelect: (id: string) => void; onHover: (id: string | null) => void; markers: boolean }
+
+const BuildingMesh = memo(function BuildingMesh({ heatBin: heat, terrainScale, b, selected, hovered, watts, exploded, floor, accent, onSelect, onHover, markers }: MeshProps) {
   const model = useMemo(() => modelFor(b), [b])
   const separate = exploded && selected && !!b.hero
   const slices = useMemo(() => separate ? Array.from({ length: b.floors }, (_, k) => floorSliceModel(b, k)) : [], [separate, b])
@@ -74,13 +79,15 @@ const BuildingMesh = memo(function BuildingMesh({ terrainScale, b, selected, hov
     onPointerOver: (e: { stopPropagation: () => void }) => { e.stopPropagation(); onHover(b.id); document.body.style.cursor = 'pointer' },
     onPointerOut: () => { onHover(null); document.body.style.cursor = '' },
   }
-  const solid = selected ? selectedSolid : solidMaterial, glass = selected ? selectedGlass : glassMaterial
+  const heatIndex = heat === null ? null : heat < 0 ? HEAT_RAMP.length : heat
+  const solid = heatIndex !== null ? heatSolid[heatIndex] : selected ? selectedSolid : solidMaterial
+  const glass = heatIndex !== null ? heatGlass[heatIndex] : selected ? selectedGlass : glassMaterial
   const stackTop = separate ? b.floors*(floorH + 5) : model.topY
   // Seat on the highest ground under the footprint; a foundation band fills the drop on the low side.
   const baseY = model.ground.max * terrainScale
   const skirtDepth = (model.ground.max - model.ground.min) * terrainScale + .4
   return <group name={`building-${b.id}`} userData={{ buildingId: b.id }} position={[0, baseY, 0]}>
-    <mesh geometry={model.skirt} material={solidMaterial} scale={[1, skirtDepth, 1]} castShadow receiveShadow />
+    <mesh geometry={model.skirt} material={heatIndex !== null ? heatSolid[heatIndex] : solidMaterial} scale={[1, skirtDepth, 1]} castShadow receiveShadow />
     {!separate && <group {...handlers}>
       <mesh geometry={model.solid} material={solid} castShadow receiveShadow />
       <mesh geometry={model.glass} material={glass} castShadow receiveShadow />
@@ -217,7 +224,7 @@ function hasWebGL() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')) } catch { return false }
 }
 
-export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene3D({ direction, selected, onSelect, cases, visible, exploded = false, selectedFloor = null, markers = true, focus = false, resetKey = 0, terrainScale = 1 }, ref) {
+export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene3D({ direction, selected, onSelect, cases, visible, exploded = false, selectedFloor = null, markers = true, focus = false, resetKey = 0, terrainScale = 1, heatmap = false }, ref) {
   const p = direction.palette
   const [hover, setHover] = useState<string | null>(null)
   const [webgl] = useState(hasWebGL)
@@ -230,6 +237,7 @@ export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene
     setFocus: on => rig.current?.setFocus(on), reset: () => rig.current?.reset(),
   }), [])
   const buildingRings = useMemo(() => campusBuildings.flatMap(b => modelFor(b).footprint.filter(r => r.role === 'outer').map(r => r.points)), [])
+  const heatMax = useMemo(() => Math.max(0, ...campusBuildings.map(b => loadFor(b.id, cases))), [cases])
   const items = useMemo(() => campusBuildings.filter(b => !visible || visible.includes(b.id)), [visible])
   const audit = campusBuildings.filter(b => b.auditScope)
   const chosen = campusBuildings.find(b => b.id === selected)
@@ -261,7 +269,7 @@ export const CampusScene3D = forwardRef<SceneHandle, Props>(function CampusScene
       <color attach="background" args={[p.scene]} />
       <Lights />
       <Terrain buildingRings={buildingRings} scale={terrainScale} />
-      {items.map(b => <BuildingMesh key={b.id} terrainScale={terrainScale} b={b} selected={b.id === selected} hovered={hover === b.id} watts={loadFor(b.id, cases)}
+      {items.map(b => <BuildingMesh key={b.id} heatBin={heatmap ? heatBin(loadFor(b.id, cases), heatMax) : null} terrainScale={terrainScale} b={b} selected={b.id === selected} hovered={hover === b.id} watts={loadFor(b.id, cases)}
         exploded={exploded} floor={selectedFloor} accent={p.accent} markers={markers} onSelect={onSelect} onHover={setHover} />)}
       <Rig ref={rig} terrainScale={terrainScale} selected={selected} focus={focus} resetKey={resetKey} onChange={onChange} />
     </Canvas>}

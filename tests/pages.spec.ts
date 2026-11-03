@@ -38,6 +38,19 @@ test('terrain relief can be exaggerated and the inspector states ground height',
   await expect(page.locator('.evidence-content')).toContainText(/Ground about \d+ m above sea level/)
 })
 
+test('heatmap button recolours buildings by observed load and explains the scale', async ({ page }) => {
+  await page.goto('/')
+  const toggle = page.getByRole('button', { name: 'Colour buildings by observed load' })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.locator('.heat-legend')).toHaveCount(0)
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('img', { name: /Heatmap legend/ })).toBeVisible()
+  await expect(page.locator('.heat-legend')).toContainText('No sample evidence')
+  await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+})
+
 test('evidence figures say what the numbers support', async ({ page }) => {
   await page.goto('/')
   const panel = page.locator('.evidence-content')
