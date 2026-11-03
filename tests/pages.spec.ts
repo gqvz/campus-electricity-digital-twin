@@ -10,6 +10,20 @@ test('methodology page states the honesty rules and has no serious a11y issues',
   expect(scan.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
 })
 
+test('secondary pages scroll when their content is taller than the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 })
+  await page.goto('/methodology')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Method')
+  const metrics = await page.evaluate(() => {
+    const shell = document.querySelector('.page-shell') as HTMLElement
+    return { shellHeight: shell.getBoundingClientRect().height, viewport: window.innerHeight, overflow: getComputedStyle(shell).overflowY }
+  })
+  expect(metrics.overflow).toBe('visible')
+  expect(metrics.shellHeight).toBeGreaterThan(metrics.viewport)
+  await page.mouse.wheel(0, 2000)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+})
+
 test('without a backend the audit and review routes explain demo mode instead of failing', async ({ page }) => {
   await page.goto('/audit')
   await expect(page.getByRole('status')).toContainText('demo mode', { timeout: 20000 })

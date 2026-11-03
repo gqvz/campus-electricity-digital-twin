@@ -1665,7 +1665,7 @@ margin-top:18px; }
 }
 
 /* Forms and secondary pages. */
-.page-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--p-bg); }
+.page-shell { height: auto; min-height: 100svh; overflow: visible; display: flex; flex-direction: column; background: var(--p-bg); }
 .page { width: 100%; max-width: 760px; margin: 0 auto; padding: 28px 16px 56px; flex: 1; }
 .page h1 { font: 600 30px/1.15 var(--p-display); color: var(--p-ink); margin: 0 0 8px; }
 .page-lead { color: var(--p-muted); font: 400 15px/1.5 var(--p-body); margin: 0 0 18px; }
