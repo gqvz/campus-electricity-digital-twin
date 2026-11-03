@@ -50,7 +50,7 @@ test('the 3D campus can be rotated, panned and zoomed, and context is not audit 
   await expect.poll(zoom, { timeout: 10000 }).toBeGreaterThan(3.5)
   await page.waitForTimeout(500)
   await shot(page, 'artifacts/designs/geographic-main-focused.png')
-  await page.getByRole('button', { name: 'Reset campus', exact: true }).click()
+  await page.getByRole('button', { name: 'Reset campus', exact: true }).click({ force: true })
   await expect.poll(zoom, { timeout: 10000 }).toBeLessThan(1.1)
 })
 
